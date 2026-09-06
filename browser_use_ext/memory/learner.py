@@ -205,6 +205,7 @@ class HistoryLearner:
     def _collect(self, steps: list[object], menu_path: list[str]) -> list[_PendingWidget]:
         candidates: list[_PendingWidget] = []
         pending: Optional[_PendingWidget] = None
+        last_url: Optional[str] = None  # 用于检测页面跳转，跳转时重置菜单路径
 
         def flush() -> None:
             nonlocal pending
@@ -222,6 +223,14 @@ class HistoryLearner:
             interacted = list(getattr(state, "interacted_element", None) or [])
             page_url: Optional[str] = getattr(state, "url", None)
             page_title: Optional[str] = getattr(state, "title", None)
+
+            # 页面跳转（URL 变化）→ 进入新场景，重置菜单路径，避免上一页的
+            # 菜单路径（如"订单管理 > 充电订单列表 > ..."）污染登录页/其它页面。
+            if page_url and last_url is not None and page_url != last_url:
+                flush()
+                menu_path.clear()
+            if page_url:
+                last_url = page_url
 
             # 失败步骤：该步的交互未成功，不作为"正确操作"学习。
             # （这也是触发覆盖更新的信号来源之一。）
