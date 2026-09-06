@@ -1,0 +1,54 @@
+{
+  "version": "1.0",
+  "memories": [
+    {
+      "id": "mem_67892775",
+      "created_at": "2026-09-06T21:24:29.265155",
+      "updated_at": "2026-09-06T21:24:29.265161",
+      "success_count": 1,
+      "last_used_at": "2026-09-06T21:24:29.265162",
+      "key": {
+        "mode": "flat",
+        "flat_key": "订单管理 > 充电订单管理 > 单据时间-日期范围控件",
+        "hierarchical_path": []
+      },
+      "element_signature": {
+        "tag": "input",
+        "role": "combobox",
+        "aria_label": null,
+        "text_fragments": [],
+        "class_fragments": [
+          "el-range-input"
+        ],
+        "attributes": {
+          "placeholder": "开始时间"
+        }
+      },
+      "operation_steps": [
+        {
+          "step": 1,
+          "description": "【auto-apply】日期范围控件，起止日期由程序按窗口动态生成并用 input_enter 设值",
+          "action": "input_enter",
+          "target_hint": "el-range-input(开始时间/结束时间)",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [],
+            "class_fragments": [
+              "el-range-input"
+            ],
+            "attributes": {
+              "placeholder": "开始时间"
+            }
+          },
+          "input_value": null
+        }
+      ],
+      "context": {
+        "url_pattern": "*charge-order/list*",
+        "page_title_fragment": "充电订单"
+      }
+    }
+  ]
+}
