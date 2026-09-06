@@ -57,10 +57,15 @@ class MemoryIntegration:
 
         # 记忆存储和匹配
         mem_config = config.element_memory
-        self.memory_store = MemoryStore(
-            storage_path=mem_config.storage_path,
-            max_memories=mem_config.max_memories,
-        )
+        if getattr(mem_config, "sharding_enabled", False):
+            from .memory.store import ShardedMemoryStore
+
+            self.memory_store = ShardedMemoryStore(mem_config.shard_dir)
+        else:
+            self.memory_store = MemoryStore(
+                storage_path=mem_config.storage_path,
+                max_memories=mem_config.max_memories,
+            )
         self.memory_matcher = MemoryMatcher(
             store=self.memory_store,
             key_mode=mem_config.key_mode,
@@ -431,6 +436,7 @@ def create_memory_agent(
     task: str,
     llm: Any,
     config_path: str = "./memory/config.json",
+    config: Any = None,
     **kwargs,
 ) -> Any:
     """
@@ -439,7 +445,8 @@ def create_memory_agent(
     Args:
         task: 任务描述
         llm: LLM 实例
-        config_path: 配置文件路径
+        config_path: 配置文件路径（JSON）；当未传 config 时使用。
+        config: 可选，直接传入的 AppConfig 对象（优先于 config_path）。
         **kwargs: 其他 Agent 参数
 
     Returns:
@@ -449,8 +456,8 @@ def create_memory_agent(
 
     from browser_use import Agent, Tools
 
-    # 1. 加载配置
-    config = _load_config(config_path)
+    # 1. 加载配置：优先用直接传入的 config 对象，否则读 config_path
+    config = config if config is not None else _load_config(config_path)
 
     # 2. 创建记忆集成实例
     integration = MemoryIntegration(config)

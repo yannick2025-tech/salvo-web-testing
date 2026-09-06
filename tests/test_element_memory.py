@@ -392,6 +392,43 @@ def test_resolve_memory_key():
           resolve_memory_key(store, "", "完全不存在的东西") is None)
 
 
+def test_sharded_store():
+    print("\n[9] ShardedMemoryStore 分片路由与读写")
+    from browser_use_ext.memory.store import ShardedMemoryStore
+
+    d = tempfile.mkdtemp()
+    s = ShardedMemoryStore(d)
+    s.add_shard("login", "login.json", "*Login*")
+    s.add_shard("charge", "charge-order.json", "*charge-order/list*")
+
+    def mk(key, url):
+        return ElementMemory(
+            key=MemoryKey(mode="flat", flat_key=key),
+            element_signature=ElementSignature(tag="input", class_fragments=["el-input"]),
+            operation_steps=[OperationStep(step=1, description="x", action="click",
+                                           element_signature=ElementSignature(tag="input"))],
+            context=MemoryContext(url_pattern=url),
+        )
+
+    s.save(mk("登录 > 账号", "https://x/Login"))
+    s.save(mk("充电 > 单据时间", "https://x/order/charge-order/list"))
+    s.save(mk("通用 > 按钮", "https://x/other"))
+
+    check("聚合读取 3 条", len(s.get_all()) == 3)
+    check("login.json 存在", os.path.exists(os.path.join(d, "login.json")))
+    check("charge-order.json 存在", os.path.exists(os.path.join(d, "charge-order.json")))
+    check("默认 elements.json 存在", os.path.exists(os.path.join(d, "elements.json")))
+
+    import json
+    check("login 分片 1 条", len(json.load(open(os.path.join(d, "login.json")))["memories"]) == 1)
+    check("charge 分片 1 条", len(json.load(open(os.path.join(d, "charge-order.json")))["memories"]) == 1)
+    check("default 分片 1 条", len(json.load(open(os.path.join(d, "elements.json")))["memories"]) == 1)
+
+    # flat key 查询
+    hit = s.query_by_flat_key("充电 > 单据时间")
+    check("flat key 跨分片命中", hit is not None)
+
+
 if __name__ == "__main__":
     print("元素记忆扩展 冒烟测试")
     test_store()
@@ -403,5 +440,6 @@ if __name__ == "__main__":
     test_learner_overwrite_on_error()
     test_integration_success_logic()
     test_resolve_memory_key()
+    test_sharded_store()
     print(f"\n结果: {PASS} passed, {FAIL} failed")
     sys.exit(1 if FAIL else 0)

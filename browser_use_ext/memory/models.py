@@ -151,6 +151,9 @@ class ElementMemoryConfig(BaseModel):
     # 例：days_back=10, include_today=False，今天 09-06 -> 08-26 ~ 09-05
     date_range_days_back: int = Field(default=10)
     date_range_include_today: bool = Field(default=False)
+    # 记忆分片：按页面/模块拆多个 JSON（默认关闭，兼容单文件）
+    sharding_enabled: bool = Field(default=False)
+    shard_dir: str = Field(default="./memory")  # 分片目录，含 index.json 与各分片 json
 
 
 class AppConfig(BaseModel):

@@ -48,7 +48,16 @@
 
 ---
 
-## 2. 约定
+## 2. 工程化约定
+
+- **依赖管理**：使用 `uv`（`uv sync` 安装，`uv run ...` 运行），不手写 requirements.txt。
+- **统一配置**：项目级配置在根目录 `config.yaml`（模型 provider、登录 URL、记忆、弹窗看门狗）。
+- **模型加载**：统一走 `app/llm_factory.py` 的 `create_llm()`，新增模型只需在注册表加一项，用例/runner 不得出现复用的 if 判断。
+- **测试用例**：用 YAML（`cases/*.yaml`）结构化步骤（action/target/locator/params）；locator 可省略，定位优先从记忆取。
+- **执行入口**：`python -m app.runner cases/<case>.yaml`，不动态生成 py 文件。
+- **登录 URL 等环境信息**只出现在 `config.yaml` 的 `app.login_url`，用例中不出现。
+
+## 3. 约定
 
 - 不要擅自执行 `git commit`：只生成 commit message 等用户确认后再提交。
 - 敏感信息（`.env`、密钥、token、密码）一律不进入版本库，已由 `.gitignore` 排除。

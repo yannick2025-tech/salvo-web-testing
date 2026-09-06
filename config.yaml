@@ -1,0 +1,45 @@
+# py-web-testing 总配置
+# 模型 provider：当前生效的模型（deepseek 或 qwen）
+llm:
+  provider: deepseek          # deepseek | qwen
+
+  deepseek:
+    api_key_env: DEEPSEEK_API_KEY
+    base_url: https://api.deepseek.com
+    model: deepseek-v4-pro
+    temperature: 0.0
+
+  qwen:
+    api_key_env: DASHSCOPE_API_KEY
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: qwen3-max
+    temperature: 0.0
+
+# 应用级配置
+app:
+  login_url: https://uat-manhattan.shell.com.cn/Login
+
+# 元素记忆（与 browser_use_ext 的 ElementMemoryConfig 同结构）
+element_memory:
+  enabled: true
+  storage_path: ./memory/elements.json
+  key_mode: flat
+  match_mode: exact
+  max_memories: 50000
+  auto_learn: true
+  min_retry_threshold: 2
+  auto_apply_enabled: true
+  date_range_days_back: 10
+  date_range_include_today: false
+
+# 弹窗看门狗（与 browser_use_ext 的 PopupWatchdogConfig 同结构）
+popup_watchdog:
+  enabled: true
+  strategy: aggressive
+  custom_selectors: []
+  whitelist_selectors: []
+  scan_on_step: true
+  scan_on_navigation: true
+  scan_delay_ms: 500
+  z_index_threshold: 1000
+  overlay_min_area_ratio: 0.3
