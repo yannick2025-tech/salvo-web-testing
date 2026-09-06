@@ -78,6 +78,42 @@ async def _run(case_path: str, config: Config) -> None:
     print("\n===== Agent Result =====")
     print(history.final_result())
 
+    # 5. 打印 token 用量（用于对比"加记忆前/后"的调用 token 差异）
+    _print_token_usage(history)
+
+
+def _print_token_usage(history: Any) -> None:
+    """打印本次运行的 token 用量统计（不涉及费用）。"""
+    usage = getattr(history, "usage", None)
+    if usage is None:
+        print("\n===== Token Usage =====")
+        print("(无 token 用量数据)")
+        return
+
+    # usage 可能是 UsageSummary 对象或 dict，统一转 dict 输出
+    data = usage.model_dump() if hasattr(usage, "model_dump") else usage
+    if not isinstance(data, dict):
+        data = vars(usage) if hasattr(usage, "__dict__") else {}
+
+    print("\n===== Token Usage =====")
+    print(f"  total_prompt_tokens   = {data.get('total_prompt_tokens', 0)}")
+    print(f"  total_completion_tokens = {data.get('total_completion_tokens', 0)}")
+    print(f"  total_tokens          = {data.get('total_tokens', 0)}")
+    print(f"  total_prompt_cached   = {data.get('total_prompt_cached_tokens', 0)}")
+    print(f"  entry_count           = {data.get('entry_count', 0)}")
+
+    by_model = data.get("by_model") or {}
+    if isinstance(by_model, dict) and by_model:
+        print("  ---- by model ----")
+        for model, stats in by_model.items():
+            s = stats.model_dump() if hasattr(stats, "model_dump") else stats
+            print(
+                f"    {model}: prompt={s.get('prompt_tokens', 0)} "
+                f"completion={s.get('completion_tokens', 0)} "
+                f"total={s.get('total_tokens', 0)} "
+                f"invocations={s.get('invocations', 0)}"
+            )
+
 
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()  # 加载 .env 中的 API KEY
