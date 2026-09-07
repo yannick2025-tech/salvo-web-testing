@@ -75,9 +75,22 @@ def build_task(case: Case, login_url: str) -> str:
         login_url: 当前平台的登录 URL（从平台配置注入，用例中不出现）。
     """
     lines: list[str] = []
+    has_conclude = False
     for i, step in enumerate(case.steps, start=1):
         # goto 步骤的 URL 若未在 params 中指定，则用当前平台的 login_url
         if step.action == "goto" and not (step.params or {}).get("url"):
             step = step.model_copy(update={"params": {**step.params, "url": login_url}})
         lines.append(f"{i}. {_step_text(step)}")
+        if step.action == "conclude":
+            has_conclude = True
+
+    # 性能优化：conclude 后追加"立即结束"强提示，避免 agent 反复"再检查/再确认"
+    # 导致大 DOM 场景下每步 LLM 超时累计。
+    if has_conclude:
+        lines.append("")
+        lines.append(
+            "【强约束】完成上面『conclude』步骤后，**必须立即调用 done 动作结束任务**。"
+            "不要再做任何额外点击/查询/截图/确认操作。LLM 输出尽量短（<=200 字），"
+            "避免不必要的长思考导致大 DOM 场景下的超时重试。"
+        )
     return "\n".join(lines)

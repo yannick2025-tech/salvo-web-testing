@@ -85,7 +85,8 @@ async def _run(case_path: str, config: Config, platform_alias: str | None) -> No
     task = build_task(case, login_url)
     logger.info("用例: %s (%d 步, 平台=%s)", case.name, len(case.steps), platform_alias or "-")
 
-    # 3. 装配 agent
+    # 3. 装配 agent（runner 段配置透传给 browser-use Agent）
+    rc = config.runner
     agent = create_memory_agent(
         task=task,
         llm=llm,
@@ -93,6 +94,10 @@ async def _run(case_path: str, config: Config, platform_alias: str | None) -> No
         use_vision=False,
         browser_profile=_browser_profile(),
         use_judge=False,
+        llm_timeout=rc.llm_timeout,
+        step_timeout=rc.step_timeout,
+        max_actions_per_step=rc.max_actions_per_step,
+        max_failures=rc.max_failures,
     )
 
     # 4. 执行

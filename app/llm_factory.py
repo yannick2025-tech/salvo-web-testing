@@ -55,6 +55,7 @@ def _build_qwen(cfg: ProviderConfig) -> Any:
         base_url=cfg.base_url,
         model=cfg.model,
         temperature=cfg.temperature,
+        max_completion_tokens=cfg.max_completion_tokens,
     )
 
 

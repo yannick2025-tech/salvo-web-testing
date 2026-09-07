@@ -42,6 +42,8 @@ class ProviderConfig(BaseModel):
     base_url: str = ""
     model: str = ""
     temperature: float = Field(default=0.0)
+    # 单次 LLM 输出 token 上限（qwen 走 OpenAI 兼容，默认 4096 在大 DOM 场景会截断）
+    max_completion_tokens: int = Field(default=8192, ge=1024)
 
 
 class LLMConfig(BaseModel):
@@ -67,6 +69,15 @@ class Platform(BaseModel):
     login_url: str = ""     # 该平台的登录 URL（用例 goto 步骤默认注入）
 
 
+class RunnerConfig(BaseModel):
+    """执行器参数：透传给 browser-use Agent。"""
+
+    llm_timeout: int = Field(default=120, ge=30, description="单次 LLM 调用超时（秒）")
+    step_timeout: int = Field(default=180, ge=30, description="单步整体超时（秒）")
+    max_actions_per_step: int = Field(default=5, ge=1, le=20, description="LLM 每步最多输出 action 数")
+    max_failures: int = Field(default=5, ge=1, description="连续失败次数上限，超过则停")
+
+
 class Config(BaseModel):
     """总配置。"""
 
@@ -75,6 +86,7 @@ class Config(BaseModel):
     platforms: dict[str, Platform] = Field(default_factory=dict)
     element_memory: dict[str, Any] = Field(default_factory=dict)
     popup_watchdog: dict[str, Any] = Field(default_factory=dict)
+    runner: RunnerConfig = Field(default_factory=RunnerConfig)
 
     def resolve_platform(self, host: str) -> Optional[str]:
         """按 host 精确匹配平台，返回平台别名；未命中返回 None。"""
