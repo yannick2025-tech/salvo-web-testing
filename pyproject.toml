@@ -18,6 +18,17 @@ dev = [
 [tool.uv]
 package = false
 
+[tool.pytest.ini_options]
+# 项目根目录加入 sys.path，使测试可直接 import browser_use_ext / app
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
