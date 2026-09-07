@@ -424,3 +424,140 @@ def test_sharded_no_platform_fallback(tmp_path):
     assert os.path.exists(os.path.join(d, "elements.json")), \
         "无平台上下文应写入 default elements.json"
     assert len(s.get_all()) == 1, "应读取 1 条"
+
+
+def test_sharded_clear_preserves_seed(tmp_path):
+    """回归：clear() 只清平台分片（学习记忆），保留 default_file 的种子记忆。
+
+    实测 bug：clear() 用 _all_files() 把 default_file（elements.json）也清空了，
+    导致日期范围控件的种子记忆丢失、auto_apply 失效。
+    """
+    from browser_use_ext.memory.store import ShardedMemoryStore
+
+    d = str(tmp_path)
+    s = ShardedMemoryStore(d, platform_alias="manhattan", platform_host="example.com")
+
+    # 种子记忆：放 default_file（elements.json）
+    seed = ElementMemory(
+        key=MemoryKey(mode="flat", flat_key="种子 > 日期范围控件"),
+        element_signature=ElementSignature(tag="input", class_fragments=["el-range-input"]),
+        operation_steps=[],
+        context=MemoryContext(url_pattern="*/order*"),
+    )
+    import json as _json
+    with open(os.path.join(d, "elements.json"), "w", encoding="utf-8") as f:
+        _json.dump({"version": "1.0", "memories": [seed.model_dump()]}, f, ensure_ascii=False)
+
+    # 学习记忆：放平台分片
+    learned = ElementMemory(
+        key=MemoryKey(mode="flat", flat_key="未知页面 > 查询"),
+        element_signature=ElementSignature(tag="button"),
+        operation_steps=[],
+        context=MemoryContext(url_pattern="*/order/list*", host="example.com"),
+    )
+    s.save(learned)
+
+    assert len(s.get_all()) == 2, "clear 前应有 2 条（1 种子 + 1 学习）"
+
+    s.clear()
+
+    remaining = s.get_all()
+    assert len(remaining) == 1, f"clear 后应只剩种子记忆，实际 {len(remaining)} 条"
+    assert remaining[0].key.to_flat_string() == "种子 > 日期范围控件", \
+        "clear 后应保留种子记忆"
+
+
+def test_is_menu_like_excludes_cascader_option():
+    """回归：级联选择器选项（li role=menuitem + cascader class）不应判为菜单。
+
+    实测出现过：Element UI Cascader 的「南京市」选项被误判为菜单，
+    污染菜单路径，导致所有记忆 KEY 被冠上错误前缀。
+    """
+    from browser_use_ext.memory.learner import _is_menu_like
+
+    cascader_option = ElementSignature(
+        tag="li", role="menuitem", text_fragments=["南京市"],
+        class_fragments=["el-cascader-node"],
+    )
+    assert not _is_menu_like(cascader_option), "级联选项不应判为菜单"
+
+    dropdown_option = ElementSignature(
+        tag="li", role="option", text_fragments=["订单创建时间"],
+        class_fragments=["el-select-dropdown__item"],
+    )
+    assert not _is_menu_like(dropdown_option), "下拉选项不应判为菜单"
+
+    real_menu = ElementSignature(
+        tag="li", role="menuitem", text_fragments=["订单管理"],
+        class_fragments=["el-submenu__title"],
+    )
+    assert _is_menu_like(real_menu), "真实菜单项(el-submenu)应判为菜单"
+
+
+def test_learner_menu_path_snapshot(tmp_path):
+    """回归：不同页面的记忆应使用各自收集时的菜单路径，而非共享最终路径。
+
+    实测 bug：_collect 遍历完整个 history 后，共享 menu_path 停留在最终值，
+    _save 对所有记录都用它，导致登录页记忆被冠上「南京市」前缀。
+    """
+    store = MemoryStore(str(tmp_path / "elements.json"), max_memories=100)
+    learner = HistoryLearner(store=store, key_mode="flat")
+
+    # 场景：登录页输入账号（此时菜单路径应为空）
+    s_login = FakeState("https://x/Login", "登录", [
+        FakeElement("input", {"class": "el-input__inner", "placeholder": "请输入账号"}, None)
+    ])
+    # 场景：站点列表页，级联选项「南京市」被点击（不应污染菜单路径）
+    s_city = FakeState("https://x/station/site/list", "站点列表", [
+        FakeElement("li", {"class": "el-cascader-node", "role": "menuitem"}, "南京市")
+    ])
+    # 场景：站点列表页，查询按钮（独立 URL，避免与上面同页合并）
+    s_query = FakeState("https://x/station/site/list/result", "站点列表", [
+        FakeElement("button", {"class": "el-button"}, "查询")
+    ])
+
+    history = FakeHistory([
+        FakeHistoryStep(s_login, [FakeAction("input_text", {"index": 1, "text": "x"})]),
+        FakeHistoryStep(s_city, [FakeAction("click_element", {"index": 1})]),
+        FakeHistoryStep(s_query, [FakeAction("click_element", {"index": 1})]),
+    ], success=True)
+
+    learner.learn(history)
+
+    keys = [m.key.to_flat_string() for m in store.get_all()]
+    print(f"    记忆 keys: {keys}")
+    # 登录页记忆不应被「南京市」污染（快照修复的核心验证）
+    assert any("请输入账号" in k and "南京市" not in k for k in keys), \
+        f"登录记忆不应带南京市前缀: {keys}"
+    # 查询按钮记忆也不应带南京市前缀
+    assert any("查询" in k and "南京市" not in k for k in keys), \
+        f"查询记忆不应带南京市前缀: {keys}"
+
+
+def test_learner_skips_semanticless_elements(tmp_path):
+    """回归：无文本/aria/placeholder/name/title 的元素（空 div/span）不记忆。"""
+    store = MemoryStore(str(tmp_path / "elements.json"), max_memories=100)
+    learner = HistoryLearner(store=store, key_mode="flat")
+
+    # 无语义的 span（class=el-checkbox__inner，无任何文本/aria/placeholder）
+    s_span = FakeState("https://x/station/site/list", "站点列表", [
+        FakeElement("span", {"class": "el-checkbox__inner"}, None)
+    ])
+    # 有语义的按钮（text=查询）
+    s_btn = FakeState("https://x/station/site/list/result", "站点列表", [
+        FakeElement("button", {"class": "el-button"}, "查询")
+    ])
+
+    history = FakeHistory([
+        FakeHistoryStep(s_span, [FakeAction("click_element", {"index": 1})]),
+        FakeHistoryStep(s_btn, [FakeAction("click_element", {"index": 1})]),
+    ], success=True)
+
+    learner.learn(history)
+
+    keys = [m.key.to_flat_string() for m in store.get_all()]
+    print(f"    记忆 keys: {keys}")
+    # 无语义 span 不应被记忆
+    assert not any("span" in k for k in keys), f"无语义 span 不应被记忆: {keys}"
+    # 有语义的查询按钮应被记忆
+    assert any("查询" in k for k in keys), f"查询按钮应被记忆: {keys}"

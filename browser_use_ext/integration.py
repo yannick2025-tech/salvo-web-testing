@@ -572,6 +572,10 @@ def create_memory_agent(
     async def patched_prepare(step_info=None):
         # 命中即自动设值：在抓 DOM 之前，若记忆中的日期范围控件当前值不对，
         # 直接 input_enter 设成目标窗口，使 LLM 当步看到正确值、不再试错。
+        #
+        # 每次都运行 auto_apply_date_ranges：它内部有幂等检查（当前值已是目标
+        # 窗口则跳过）。不能加外层缓存——前端可能在用户操作（如切换下拉选项）
+        # 后把日期重置回默认值，缓存会阻止二次纠正，导致日期停留在错误值。
         try:
             bs = getattr(agent, "browser_session", None)
             if bs is None:

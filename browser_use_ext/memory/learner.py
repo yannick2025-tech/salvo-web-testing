@@ -41,6 +41,7 @@ class _PendingWidget:
     steps: list[OperationStep] = field(default_factory=list)
     url: Optional[str] = None
     title: Optional[str] = None
+    menu_path: list[str] = field(default_factory=list)  # 收集时的菜单路径快照
 
 
 def _build_signature(element: object) -> Optional[ElementSignature]:
@@ -127,16 +128,26 @@ def _action_name_of(action: object) -> str:
 
 
 def _is_menu_like(signature: ElementSignature) -> bool:
-    """判断是否为菜单项（设计文档 4.3 的 is_menu_element 启发式）。"""
+    """判断是否为「导航菜单项」（设计文档 4.3 的 is_menu_element 启发式）。
+
+    注意：必须排除级联/下拉/树等**选项控件**——它们的选项也常是
+    `li role=menuitem`（如 Element UI Cascader 的「南京市」），若误判为菜单
+    会污染菜单路径，导致记忆 KEY 全被冠上错误前缀（实测出现过）。
+    """
     text = " ".join(signature.text_fragments or []).lower()
     cls = " ".join(signature.class_fragments or []).lower()
+
+    # 排除选项控件：级联/下拉/树/日期/标签等，它们的 item 不是导航菜单
+    if any(kw in cls for kw in ("cascader", "dropdown", "tree", "select", "option")):
+        return False
+
     if any(kw in cls for kw in ("menu", "nav", "sidebar", "submenu")):
-        return True
-    if signature.role in ("menuitem", "navigation", "treeitem"):
         return True
     if signature.tag in ("nav", "menu"):
         return True
-    if text and 0 < len(text) <= 12 and any(kw in cls for kw in ("菜单", "侧边栏", "nav", "menu")):
+    # role 判断收紧：仅当 role=menuitem 且文本较短（导航项通常短）时，
+    # 且 tag 是 li/a/span 等菜单载体，才视为菜单。
+    if signature.role == "menuitem" and text and len(text) <= 12:
         return True
     return False
 
@@ -268,6 +279,7 @@ class HistoryLearner:
                     steps=[op_step],
                     url=page_url,
                     title=page_title,
+                    menu_path=list(menu_path),  # 快照，避免后续菜单推进污染本记录
                 )
 
         flush()
@@ -283,15 +295,31 @@ class HistoryLearner:
             return "skipped"
 
         element_text = " ".join(sig.text_fragments or []).strip()
+
+        # 最小语义过滤：无文本、无 aria-label、无 placeholder、无 name、无 title
+        # 的元素（如无语义的空 div/span）不作为记忆——其 key 会退化为 tag 名，
+        # 无区分度、无法复用，纯属噪声。
+        if not (
+            element_text
+            or sig.aria_label
+            or sig.attributes.get("placeholder")
+            or sig.attributes.get("name")
+            or sig.attributes.get("title")
+        ):
+            logger.debug(f"跳过无语义元素记忆: tag={sig.tag}, class={sig.class_fragments[:3]}")
+            return "skipped"
+
         leaf_name = (
             element_text
             or (sig.aria_label or "")
             or sig.attributes.get("placeholder")
             or sig.attributes.get("name")
+            or sig.attributes.get("title")
             or sig.tag
         )
 
-        path = list(menu_path)
+        # 用本记录收集时的菜单路径快照，而非遍历结束后的共享 menu_path。
+        path = list(rec.menu_path) if rec.menu_path else list(menu_path)
         if not path:
             path = ["未知页面"]
         path = path + [leaf_name or sig.tag]

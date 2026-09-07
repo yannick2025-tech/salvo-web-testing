@@ -350,8 +350,20 @@ class ShardedMemoryStore:
         logger.info(f"[shard:{filename}] 新增记忆: {memory.key.to_flat_string()}")
 
     def clear(self) -> None:
-        for f in self._all_files():
-            self._save_file(f, MemoryFile())
+        """清空「学习记忆」（平台分片文件），保留 default_file 中的「种子记忆」。
+
+        种子记忆（如日期范围控件、手工维护的确定性记忆）存放在 default_file
+        （elements.json），不应被 clear 误删；分片文件（<platform>/*.json）存放
+        自动学习到的记忆，是清理噪声时的目标。
+        """
+        if self.platform_alias:
+            base = self.dir / self.platform_alias
+            if base.exists():
+                for p in base.glob("*.json"):
+                    self._save_file(str(p.relative_to(self.dir)), MemoryFile())
+        else:
+            # 无平台上下文：default_file 是唯一存储，清空它
+            self._save_file(self.default_file, MemoryFile())
 
     # 兼容旧接口（测试/遗留代码可能调用 add_shard）
     def add_shard(self, name: str, file: str, url_pattern: str) -> None:
