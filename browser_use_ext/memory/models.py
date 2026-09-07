@@ -157,7 +157,7 @@ class ElementMemoryConfig(BaseModel):
     shard_dir: str = Field(default="./memory")  # 分片根目录，含各平台子目录
     # 多平台上下文（由 runner 注入）：平台别名作为分片子目录名，host 用于写入路由。
     platform_alias: str = Field(default="")   # 如 "manhattan"
-    platform_host: str = Field(default="")    # 如 "uat-manhattan.shell.com.cn"
+    platform_host: str = Field(default="")    # 如 "example-platform.com"
 
 
 class AppConfig(BaseModel):

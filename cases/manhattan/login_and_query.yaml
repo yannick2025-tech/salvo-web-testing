@@ -6,10 +6,10 @@ steps:
     target: 登录页
   - action: input
     target: 请输入您的账号
-    params: { value: "18936879143" }
+    params: { value: "${TEST_ACCOUNT}" }
   - action: input
     target: 请输入您的密码
-    params: { value: "Abcd1234!@#$" }
+    params: { value: "${TEST_PASSWORD}" }
   - action: click
     target: 登录按钮
     locator: { id: login }

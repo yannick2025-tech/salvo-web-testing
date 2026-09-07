@@ -33,7 +33,7 @@ steps:
   - action: input
     target: 账号输入框
     locator: { placeholder: 请输入您的账号 }   # 显式定位
-    params: { value: 18936879143 }
+    params: { value: "your-account" }
   - action: click
     target: 登录按钮
     locator: { id: login }                    # 显式定位
@@ -53,7 +53,7 @@ steps:
 steps:
   - action: input
     target: 账号输入框
-    params: { value: 18936879143 }
+    params: { value: "your-account" }
   - action: click
     target: 登录按钮
   - action: click

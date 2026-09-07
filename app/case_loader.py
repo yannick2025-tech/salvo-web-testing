@@ -63,6 +63,11 @@ def load_case(path: str) -> Case:
     with open(p, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
 
+    # 敏感信息脱敏：用例里的 ${VAR} 占位符替换为环境变量值（如账号/密码）。
+    from .config import expand_env_vars
+
+    data = expand_env_vars(data)
+
     if not isinstance(data, dict):
         raise ValueError("用例文件顶层必须是映射")
 

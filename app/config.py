@@ -8,11 +8,31 @@ browser_use_ext 的 AppConfig 同结构，runner 会把它传给 create_memory_a
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Any, Optional
 
 import yaml
 from pydantic import BaseModel, Field
+
+# 匹配 ${VAR_NAME} 形式的环境变量占位符
+_ENV_PATTERN = re.compile(r"\$\{(\w+)\}")
+
+
+def expand_env_vars(obj: Any) -> Any:
+    """递归地把字符串中的 ${VAR_NAME} 替换为环境变量值。
+
+    未设置的环境变量保留原样（不替换），便于在 .env.example 里给出模板。
+    用于 config.yaml 与 cases/*.yaml 中的敏感信息（域名、账号、密码）脱敏：
+    文件里写占位符，真实值放本地 .env（已被 .gitignore 排除）。
+    """
+    if isinstance(obj, str):
+        return _ENV_PATTERN.sub(lambda m: os.environ.get(m.group(1), m.group(0)), obj)
+    if isinstance(obj, dict):
+        return {k: expand_env_vars(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [expand_env_vars(v) for v in obj]
+    return obj
 
 
 class ProviderConfig(BaseModel):
@@ -89,6 +109,8 @@ def load_config(path: Optional[str] = None) -> Config:
 
     with open(p, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
+    # 敏感信息脱敏：配置文件里的 ${VAR} 占位符在此替换为环境变量值。
+    data = expand_env_vars(data)
     return Config.model_validate(data)
 
 

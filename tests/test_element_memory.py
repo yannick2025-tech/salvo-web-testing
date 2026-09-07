@@ -363,7 +363,7 @@ def test_sharded_store(tmp_path):
     from browser_use_ext.memory.store import ShardedMemoryStore
 
     d = str(tmp_path)
-    s = ShardedMemoryStore(d, platform_alias="manhattan", platform_host="uat-manhattan.shell.com.cn")
+    s = ShardedMemoryStore(d, platform_alias="manhattan", platform_host="example-platform.com")
 
     def mk(key, url, host):
         return ElementMemory(
@@ -374,7 +374,7 @@ def test_sharded_store(tmp_path):
             context=MemoryContext(url_pattern=url, host=host),
         )
 
-    host = "uat-manhattan.shell.com.cn"
+    host = "example-platform.com"
     s.save(mk("登录 > 账号", "*Login*", host))
     s.save(mk("充电 > 单据时间", "*order/charge-order/list*", host))
     s.save(mk("站点 > 城市名称", "*station/site/list*", host))

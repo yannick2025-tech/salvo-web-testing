@@ -17,10 +17,11 @@ llm:
 
 # 多平台注册表：一个平台对应一个用例组，host 精确匹配用于路由记忆分片。
 # runner 通过 --platform <alias> 或从用例路径推断当前平台。
+# 敏感信息（域名/URL）用 ${VAR} 占位符，真实值放本地 .env（见 .env.example）。
 platforms:
   manhattan:
-    host: uat-manhattan.shell.com.cn
-    login_url: https://uat-manhattan.shell.com.cn/Login
+    host: ${MANHATTAN_HOST}
+    login_url: ${MANHATTAN_LOGIN_URL}
 
 # 元素记忆（与 browser_use_ext 的 ElementMemoryConfig 同结构）
 element_memory:

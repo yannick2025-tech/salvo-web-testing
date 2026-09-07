@@ -17,12 +17,12 @@
 系统 SHALL 在写入与查询记忆时，根据当前页面 URL 自动确定目标分片，路由键为「host → 平台目录」与「URL path 第一段 → 分片文件」。
 
 #### Scenario: 写入路由到对应平台分片
-- **WHEN** learner 学习到一条记忆，其 context.url_pattern 的 host 为 `uat-manhattan.shell.com.cn` 且 path 第一段为 `order`
-- **THEN** 系统将该记忆写入 `memory/manhattan/order.json` 分片
+- **WHEN** learner 学习到一条记忆，其 context.url_pattern 的 host 为 `example-platform.com` 且 path 第一段为 `order`
+- **THEN** 系统将该记忆写入 `memory/<platform>/order.json` 分片
 
 #### Scenario: 查询路由到对应分片
-- **WHEN** 当前页面 URL 为 `https://uat-manhattan.shell.com.cn/station/site/list`
-- **THEN** 系统仅在 `memory/manhattan/station.json` 分片内匹配记忆，而非扫描全部分片
+- **WHEN** 当前页面 URL 为 `https://example-platform.com/station/site/list`
+- **THEN** 系统仅在 `memory/<platform>/station.json` 分片内匹配记忆，而非扫描全部分片
 
 ### Requirement: 公共记忆分片
 系统 SHALL 为不属于任何一级菜单的页面（如登录页、跨菜单通用控件）提供公共记忆分片。

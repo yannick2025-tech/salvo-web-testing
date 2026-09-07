@@ -74,11 +74,11 @@
   ```yaml
   platforms:
     manhattan:
-      host: uat-manhattan.shell.com.cn
-      login_url: https://uat-manhattan.shell.com.cn/Login
+      host: ${MANHATTAN_HOST}      # 从 .env 注入，避免泄露内网域名
+      login_url: ${MANHATTAN_LOGIN_URL}
     charging:
-      host: uat-charging.shell.com.cn
-      login_url: https://uat-charging.shell.com.cn/Login
+      host: ${CHARGING_HOST}
+      login_url: ${CHARGING_LOGIN_URL}
   ```
 - **用例组**：`cases/<platform>/<case>.yaml`，一个平台 = 一个用例组。`runner` 通过 `--platform` 或从用例路径推断平台，从而注入对应的 `login_url` 与记忆目录。
 - **登录 URL 归属**：从 `app.login_url`（项目级）移除，改由平台配置提供；用例 YAML 中仍不出现 URL。
