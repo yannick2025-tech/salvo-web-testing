@@ -158,76 +158,115 @@ class MemoryStore:
 
 
 class ShardedMemoryStore:
-    """按页面/模块拆分多 JSON 的分片记忆存储。
+    """按「平台 + URL path 第一段」拆分多 JSON 的分片记忆存储。
 
-    目录结构：
-        memory/
-          index.json          # 索引：shard 名 -> 文件 + url_pattern
-          login.json          # 各分片文件（MemoryFile 格式）
-          charge-order.json
-          ...
-          elements.json       # default：未匹配 url_pattern 的记忆
+    目录结构（多平台模式）：
+        <shard_dir>/
+          <platform_alias>/          # 平台别名，由 host 精确映射（runner 注入）
+            _common.json             # 公共记忆（登录页、无法解析 path 时）
+            order.json               # /order/*   -> 订单管理
+            station.json             # /station/* -> 电站管理
+          elements.json              # 兼容旧单文件（无平台上下文时）
+
+    路由键：
+    - 平台目录：memory.context.host（或 store 注入的 platform_host/alias）精确映射。
+    - 分片文件：URL path 第一段 -> <seg>.json；无法解析则 _common.json。
 
     与 MemoryStore 暴露相同接口，可无缝替换给 auto_apply / learner / integration。
     """
 
-    def __init__(self, memory_dir: str, index_file: str = "index.json", default_file: str = "elements.json"):
+    COMMON_FILE = "_common.json"
+
+    def __init__(
+        self,
+        memory_dir: str,
+        platform_alias: str = "",
+        platform_host: str = "",
+        default_file: str = "elements.json",
+    ):
         self.dir = Path(memory_dir)
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.index_path = self.dir / index_file
         self.default_file = default_file
         self._lock = threading.Lock()
-        self._shards_cache: Optional[list[dict]] = None
+        # 平台上下文（由 runner 注入）：platform_alias 决定子目录名；platform_host 用于写入路由。
+        self.platform_alias = platform_alias
+        self.platform_host = platform_host
 
     # ------------------------------------------------------------------ #
-    # 索引
+    # 路径解析
     # ------------------------------------------------------------------ #
-    def _load_index(self) -> list[dict]:
-        """加载分片索引列表 [{name, file, url_pattern}]。"""
-        if self._shards_cache is not None:
-            return self._shards_cache
-        if not self.index_path.exists():
-            self._shards_cache = []
-            return self._shards_cache
+    @staticmethod
+    def resolve_shard(url_or_path: str) -> str:
+        """把 URL、path 或 glob pattern 解析为分片文件名：第一段 -> <seg>.json。
+
+        例：/station/site/list -> station.json；/Login 或 *Login* -> _common.json。
+        容忍 url_pattern 的 glob 形态（去掉 * 后解析）。
+        """
+        from urllib.parse import urlparse
+
+        if not url_or_path:
+            return ShardedMemoryStore.COMMON_FILE
+        raw = url_or_path.strip().strip("*").strip()
         try:
-            with open(self.index_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            self._shards_cache = list(data.get("shards", []))
-        except Exception as e:
-            logger.warning(f"分片索引读取失败: {e}")
-            self._shards_cache = []
-        return self._shards_cache
+            parsed = urlparse(raw)
+            path = parsed.path or raw
+        except Exception:
+            path = raw
+        seg = (path or "").strip("/").split("/")[0]
+        if not seg or seg.lower() in ("login", "logout"):
+            return ShardedMemoryStore.COMMON_FILE
+        # 仅允许字母数字/下划线/连字符，避免路径注入
+        safe = "".join(c for c in seg if c.isalnum() or c in "_-")
+        return f"{safe}.json" if safe else ShardedMemoryStore.COMMON_FILE
 
-    def _write_index(self, shards: list[dict]) -> None:
-        with self._lock:
-            with open(self.index_path, "w", encoding="utf-8") as f:
-                json.dump({"shards": shards}, f, ensure_ascii=False, indent=2)
-            self._shards_cache = shards
+    def _platform_dir(self, host: Optional[str] = None) -> Optional[str]:
+        """返回平台子目录名；无平台上下文返回 None（回退单文件）。"""
+        # 优先用注入的平台别名（runner 已按 host 解析好）
+        if self.platform_alias:
+            return self.platform_alias
+        # 否则尝试用传入 host 匹配 platform_host
+        if host and self.platform_host and host == self.platform_host:
+            return self.platform_alias or None
+        return None
+
+    def _resolve_path(self, host: Optional[str], url_pattern: Optional[str]) -> str:
+        """返回相对 shard_dir 的文件路径（可能含平台子目录）。"""
+        platform = self._platform_dir(host)
+        shard = self.resolve_shard(url_pattern or "")
+        if platform:
+            return str(Path(platform) / shard)
+        # 无平台上下文：回退单文件（兼容旧行为）
+        return self.default_file
 
     # ------------------------------------------------------------------ #
     # 文件读取
     # ------------------------------------------------------------------ #
-    def _load_file(self, filename: str) -> "MemoryFile":
-        p = self.dir / filename
+    def _load_file(self, rel_path: str) -> "MemoryFile":
+        p = self.dir / rel_path
         if not p.exists():
             return MemoryFile()
         try:
             with open(p, "r", encoding="utf-8") as f:
                 return MemoryFile.model_validate(json.load(f))
         except Exception as e:
-            logger.warning(f"记忆分片文件读取失败: {filename} -> {e}")
+            logger.warning(f"记忆分片文件读取失败: {rel_path} -> {e}")
             return MemoryFile()
 
-    def _save_file(self, filename: str, memory_file: "MemoryFile") -> None:
+    def _save_file(self, rel_path: str, memory_file: "MemoryFile") -> None:
+        p = self.dir / rel_path
+        p.parent.mkdir(parents=True, exist_ok=True)
         with self._lock:
-            with open(self.dir / filename, "w", encoding="utf-8") as f:
+            with open(p, "w", encoding="utf-8") as f:
                 f.write(memory_file.model_dump_json(indent=2, ensure_ascii=False))
 
     def _all_files(self) -> list[str]:
-        """所有分片文件 + default 文件。"""
-        files = [s.get("file") for s in self._load_index() if s.get("file")]
-        if self.default_file not in files:
-            files.append(self.default_file)
+        """所有分片文件（含平台子目录）+ default 文件。"""
+        files: list[str] = []
+        if self.platform_alias:
+            base = self.dir / self.platform_alias
+            if base.exists():
+                files.extend(str(p.relative_to(self.dir)) for p in base.glob("*.json"))
+        files.append(self.default_file)
         return files
 
     # ------------------------------------------------------------------ #
@@ -287,16 +326,13 @@ class ShardedMemoryStore:
                 return mf.memories[0] if mf.memories else None
         return None
 
-    def _route_file(self, url_pattern: Optional[str]) -> str:
-        """按 url_pattern 匹配分片；无匹配返回 default 文件。"""
-        for s in self._load_index():
-            pat = s.get("url_pattern")
-            if pat and url_pattern and _url_match(url_pattern, pat):
-                return s.get("file", self.default_file)
-        return self.default_file
+    def _route_file(self, memory: ElementMemory) -> str:
+        """按 memory.context 的 host + url_pattern 路由到分片文件。"""
+        ctx = memory.context
+        return self._resolve_path(ctx.host if ctx else None, ctx.url_pattern if ctx else None)
 
     def save(self, memory: ElementMemory) -> None:
-        filename = self._route_file(memory.context.url_pattern if memory.context else None)
+        filename = self._route_file(memory)
         mf = self._load_file(filename)
         # 同 key 更新
         for i, m in enumerate(mf.memories):
@@ -317,12 +353,10 @@ class ShardedMemoryStore:
         for f in self._all_files():
             self._save_file(f, MemoryFile())
 
+    # 兼容旧接口（测试/遗留代码可能调用 add_shard）
     def add_shard(self, name: str, file: str, url_pattern: str) -> None:
-        """注册一个分片。"""
-        shards = self._load_index()
-        shards = [s for s in shards if s.get("name") != name]
-        shards.append({"name": name, "file": file, "url_pattern": url_pattern})
-        self._write_index(shards)
+        """兼容旧接口：不再使用 index.json，此方法保留为空操作以避免破坏调用方。"""
+        logger.debug(f"add_shard 已弃用（忽略）: {name}")
 
 
 def _url_match(url: str, pattern: str) -> bool:

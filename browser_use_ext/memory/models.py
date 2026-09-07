@@ -91,6 +91,7 @@ class MemoryContext(BaseModel):
 
     url_pattern: Optional[str] = Field(default=None, description="URL 模式（辅助验证）")
     page_title_fragment: Optional[str] = Field(default=None, description="页面标题片段（辅助验证）")
+    host: Optional[str] = Field(default=None, description="来源域名（用于多平台分片路由）")
 
 
 class ElementMemory(BaseModel):
@@ -153,7 +154,10 @@ class ElementMemoryConfig(BaseModel):
     date_range_include_today: bool = Field(default=False)
     # 记忆分片：按页面/模块拆多个 JSON（默认关闭，兼容单文件）
     sharding_enabled: bool = Field(default=False)
-    shard_dir: str = Field(default="./memory")  # 分片目录，含 index.json 与各分片 json
+    shard_dir: str = Field(default="./memory")  # 分片根目录，含各平台子目录
+    # 多平台上下文（由 runner 注入）：平台别名作为分片子目录名，host 用于写入路由。
+    platform_alias: str = Field(default="")   # 如 "manhattan"
+    platform_host: str = Field(default="")    # 如 "uat-manhattan.shell.com.cn"
 
 
 class AppConfig(BaseModel):

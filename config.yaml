@@ -15,14 +15,17 @@ llm:
     model: qwen3-max
     temperature: 0.0
 
-# 应用级配置
-app:
-  login_url: https://uat-manhattan.shell.com.cn/Login
+# 多平台注册表：一个平台对应一个用例组，host 精确匹配用于路由记忆分片。
+# runner 通过 --platform <alias> 或从用例路径推断当前平台。
+platforms:
+  manhattan:
+    host: uat-manhattan.shell.com.cn
+    login_url: https://uat-manhattan.shell.com.cn/Login
 
 # 元素记忆（与 browser_use_ext 的 ElementMemoryConfig 同结构）
 element_memory:
   enabled: true
-  storage_path: ./memory/elements.json
+  storage_path: ./memory/elements.json   # 兼容旧单文件（无平台上下文时回退）
   key_mode: flat
   match_mode: exact
   max_memories: 50000
@@ -31,6 +34,10 @@ element_memory:
   auto_apply_enabled: true
   date_range_days_back: 10
   date_range_include_today: false
+  # 记忆分片：按「平台(host) + URL path 第一段」拆多 JSON。
+  # platform_alias / platform_host 由 runner 按 --platform 注入，无需在此写死。
+  sharding_enabled: true
+  shard_dir: ./memory
 
 # 弹窗看门狗（与 browser_use_ext 的 PopupWatchdogConfig 同结构）
 popup_watchdog:

@@ -40,19 +40,40 @@ def _browser_profile() -> Any:
     )
 
 
-def _build_memory_config(config: Config) -> Any:
+def _build_memory_config(config: Config, platform_alias: str | None) -> Any:
     """把总配置里的 element_memory/popup_watchdog 段构造成 browser_use_ext 的 AppConfig。"""
     from browser_use_ext.memory.models import AppConfig
 
+    element_memory = dict(config.element_memory or {})
+    # 把平台上下文注入记忆配置，供分片路由（host -> 平台目录）使用。
+    if platform_alias:
+        platform = config.platform(platform_alias)
+        if platform:
+            element_memory["platform_alias"] = platform_alias
+            element_memory["platform_host"] = platform.host
+
     return AppConfig.model_validate(
         {
-            "element_memory": config.element_memory or {},
+            "element_memory": element_memory,
             "popup_watchdog": config.popup_watchdog or {},
         }
     )
 
 
-async def _run(case_path: str, config: Config) -> None:
+def _infer_platform(case_path: str) -> str | None:
+    """从用例路径推断平台别名：cases/<platform>/<case>.yaml -> <platform>。
+
+    仅当路径形如 cases/<alias>/... 时返回别名，否则返回 None。
+    """
+    parts = Path(case_path).parts
+    if len(parts) >= 2 and parts[-2] != "cases" and "cases" in parts:
+        idx = list(parts).index("cases")
+        if idx + 1 < len(parts) - 1:
+            return parts[idx + 1]
+    return None
+
+
+async def _run(case_path: str, config: Config, platform_alias: str | None) -> None:
     from browser_use_ext.integration import create_memory_agent
 
     # 1. 建模型
@@ -60,14 +81,15 @@ async def _run(case_path: str, config: Config) -> None:
 
     # 2. 加载用例并转 task
     case = load_case(case_path)
-    task = build_task(case, config.app.login_url)
-    logger.info("用例: %s (%d 步)", case.name, len(case.steps))
+    login_url = config.platform_login_url(platform_alias) if platform_alias else ""
+    task = build_task(case, login_url)
+    logger.info("用例: %s (%d 步, 平台=%s)", case.name, len(case.steps), platform_alias or "-")
 
     # 3. 装配 agent
     agent = create_memory_agent(
         task=task,
         llm=llm,
-        config=_build_memory_config(config),
+        config=_build_memory_config(config, platform_alias),
         use_vision=False,
         browser_profile=_browser_profile(),
         use_judge=False,
@@ -125,6 +147,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="总配置文件路径（默认项目根目录 config.yaml）",
     )
+    parser.add_argument(
+        "--platform",
+        default=None,
+        help="平台别名（缺省时从用例路径 cases/<platform>/... 推断）",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -134,7 +161,16 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     config = load_config(args.config)
-    asyncio.run(_run(args.case, config))
+
+    # 平台解析：显式 --platform 优先，否则从用例路径推断
+    platform_alias = args.platform or _infer_platform(args.case)
+    if platform_alias and not config.platform(platform_alias):
+        logger.warning(
+            "平台 %r 未在 config.yaml 的 platforms 中注册，登录 URL 将为空",
+            platform_alias,
+        )
+
+    asyncio.run(_run(args.case, config, platform_alias))
     return 0
 
 

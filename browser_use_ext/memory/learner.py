@@ -317,6 +317,7 @@ class HistoryLearner:
             context=MemoryContext(
                 url_pattern=self._to_url_pattern(rec.url),
                 page_title_fragment=self._page_fragment(rec.title),
+                host=self._to_host(rec.url),
             ),
         )
         self.store.save(memory)
@@ -377,6 +378,18 @@ class HistoryLearner:
 
             path = urlparse(url).path or "/"
             return f"*{path}*"
+        except Exception:
+            return None
+
+    @staticmethod
+    def _to_host(url: Optional[str]) -> Optional[str]:
+        """从完整 URL 提取 host（用于多平台分片路由）。"""
+        if not url:
+            return None
+        try:
+            from urllib.parse import urlparse
+
+            return urlparse(url).netloc or None
         except Exception:
             return None
 

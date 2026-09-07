@@ -51,11 +51,18 @@
 ## 2. 工程化约定
 
 - **依赖管理**：使用 `uv`（`uv sync` 安装，`uv run ...` 运行），不手写 requirements.txt。
-- **统一配置**：项目级配置在根目录 `config.yaml`（模型 provider、登录 URL、记忆、弹窗看门狗）。
+- **单元测试**：pytest 风格（`assert` 断言 + `tmp_path` fixture），配置在 `pyproject.toml` 的 `[tool.pytest.ini_options]`。首次 `uv sync --extra dev` 安装 pytest，日常 `uv run pytest`（或 `uv run pytest -v`）运行；提交前必须全绿。
+- **统一配置**：项目级配置在根目录 `config.yaml`（模型 provider、平台注册表、记忆、弹窗看门狗）。
 - **模型加载**：统一走 `app/llm_factory.py` 的 `create_llm()`，新增模型只需在注册表加一项，用例/runner 不得出现复用的 if 判断。
-- **测试用例**：用 YAML（`cases/*.yaml`）结构化步骤（action/target/locator/params）；locator 可省略，定位优先从记忆取。
-- **执行入口**：`python -m app.runner cases/<case>.yaml`，不动态生成 py 文件。
-- **登录 URL 等环境信息**只出现在 `config.yaml` 的 `app.login_url`，用例中不出现。
+- **测试用例**：用 YAML 结构化步骤（action/target/locator/params）；locator 可省略，定位优先从记忆取。
+- **执行入口**：`python -m app.runner cases/<platform>/<case>.yaml`（`--platform <alias>` 可覆盖平台推断），不动态生成 py 文件。
+
+### 多平台与用例组
+
+- **平台注册表**：`config.yaml` 的 `platforms` 段以「别名 → {host, login_url}」声明管理平台，host 用于记忆分片路由（精确匹配）。
+- **用例组**：一个平台对应一个用例组目录 `cases/<platform_alias>/`，`platform_alias` 与 `config.yaml` 的 platforms 键一致。
+- **登录 URL 归属平台级**：登录 URL 只出现在 `platforms.<alias>.login_url`，不再有项目级单一 `app.login_url`；用例 YAML 中不出现 URL。
+- **记忆分片**：元素记忆按「平台 host + URL path 第一段」拆分为 `memory/<platform_alias>/<seg>.json`；登录页等无一级菜单的页面落入 `_common.json`；无平台上下文时回退旧单文件 `elements.json`（迁移期兼容）。LLM 无感知，分片路由由程序根据当前页面 URL 自动完成。
 
 ## 3. 约定
 

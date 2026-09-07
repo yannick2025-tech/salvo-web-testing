@@ -40,19 +40,37 @@ class LLMConfig(BaseModel):
         return name, cfg
 
 
-class AppConfig(BaseModel):
-    """应用级配置。"""
+class Platform(BaseModel):
+    """单个管理平台的注册信息。"""
 
-    login_url: str = ""
+    host: str = ""          # 域名（精确匹配，用于记忆分片路由）
+    login_url: str = ""     # 该平台的登录 URL（用例 goto 步骤默认注入）
 
 
 class Config(BaseModel):
     """总配置。"""
 
     llm: LLMConfig = Field(default_factory=LLMConfig)
-    app: AppConfig = Field(default_factory=AppConfig)
+    # 平台注册表：别名 -> Platform。别名同时作为记忆分片目录名与用例组目录名。
+    platforms: dict[str, Platform] = Field(default_factory=dict)
     element_memory: dict[str, Any] = Field(default_factory=dict)
     popup_watchdog: dict[str, Any] = Field(default_factory=dict)
+
+    def resolve_platform(self, host: str) -> Optional[str]:
+        """按 host 精确匹配平台，返回平台别名；未命中返回 None。"""
+        for alias, platform in self.platforms.items():
+            if platform.host and platform.host == host:
+                return alias
+        return None
+
+    def platform(self, alias: str) -> Optional[Platform]:
+        """按别名取平台。"""
+        return self.platforms.get(alias)
+
+    def platform_login_url(self, alias: str) -> str:
+        """取指定平台的登录 URL；缺失时返回空串。"""
+        p = self.platforms.get(alias)
+        return p.login_url if p else ""
 
 
 def load_config(path: Optional[str] = None) -> Config:

@@ -72,11 +72,11 @@ def build_task(case: Case, login_url: str) -> str:
 
     Args:
         case: 用例对象。
-        login_url: 全局登录 URL（从配置注入，用例中不出现）。
+        login_url: 当前平台的登录 URL（从平台配置注入，用例中不出现）。
     """
     lines: list[str] = []
     for i, step in enumerate(case.steps, start=1):
-        # goto 步骤的 URL 若未在 params 中指定，则用全局 login_url
+        # goto 步骤的 URL 若未在 params 中指定，则用当前平台的 login_url
         if step.action == "goto" and not (step.params or {}).get("url"):
             step = step.model_copy(update={"params": {**step.params, "url": login_url}})
         lines.append(f"{i}. {_step_text(step)}")

@@ -60,7 +60,11 @@ class MemoryIntegration:
         if getattr(mem_config, "sharding_enabled", False):
             from .memory.store import ShardedMemoryStore
 
-            self.memory_store = ShardedMemoryStore(mem_config.shard_dir)
+            self.memory_store = ShardedMemoryStore(
+                mem_config.shard_dir,
+                platform_alias=getattr(mem_config, "platform_alias", "") or "",
+                platform_host=getattr(mem_config, "platform_host", "") or "",
+            )
         else:
             self.memory_store = MemoryStore(
                 storage_path=mem_config.storage_path,
