@@ -78,6 +78,12 @@ class RunnerConfig(BaseModel):
     max_failures: int = Field(default=5, ge=1, description="连续失败次数上限，超过则停")
 
 
+class ProfilingConfig(BaseModel):
+    """计量配置：量化 prompt 各部分 token 占比（纯观测，不影响执行）。"""
+
+    enabled: bool = True
+
+
 class Config(BaseModel):
     """总配置。"""
 
@@ -87,6 +93,7 @@ class Config(BaseModel):
     element_memory: dict[str, Any] = Field(default_factory=dict)
     popup_watchdog: dict[str, Any] = Field(default_factory=dict)
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
+    profiling: ProfilingConfig = Field(default_factory=ProfilingConfig)
 
     def resolve_platform(self, host: str) -> Optional[str]:
         """按 host 精确匹配平台，返回平台别名；未命中返回 None。"""

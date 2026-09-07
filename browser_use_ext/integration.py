@@ -441,6 +441,7 @@ def create_memory_agent(
     llm: Any,
     config_path: str = "./memory/config.json",
     config: Any = None,
+    profiling_enabled: bool = False,
     **kwargs,
 ) -> Any:
     """
@@ -490,6 +491,7 @@ def create_memory_agent(
     # 5. 创建回调
     # 说明：browser_session 引用统一由下方 patched_run 在 agent.run 启动时
     # 从 agent.browser_session 注入，因此此处不再做脆弱的属性探测。
+    profiler = None  # 纯观测的 prompt 计量器（profiling_enabled 时赋值）
     async def step_cb(state: BrowserStateSummary, agent_output: AgentOutput, step: int) -> None:
         # 确保 session 引用就绪（极端情况下 run 前若已有 session 直接补注入）
         if integration._browser_session is None and hasattr(agent, "browser_session"):
@@ -507,6 +509,12 @@ def create_memory_agent(
             integration._browser_session = agent.browser_session
 
         await integration.done_callback(history)
+
+        if profiler is not None:
+            try:
+                logger.info("[profiler] %s", profiler.report())
+            except Exception as e:  # noqa: BLE001 —— 报告失败不影响主流程
+                logger.debug(f"[profiler] 输出报告失败: {e}")
 
     # 6. 合并 tools：若调用方传了自定义 tools，把 follow_memory 动作合并进去；否则用本 tools
     def _inner_actions(tool_obj: Any) -> dict:
@@ -553,6 +561,13 @@ def create_memory_agent(
             agent_kwargs[key] = value
 
     agent = Agent(**agent_kwargs)
+
+    # 挂载 prompt 计量（纯观测，不影响执行）
+    if profiling_enabled:
+        from .prompt_profiler import PromptUsageProfiler
+
+        profiler = PromptUsageProfiler()
+        profiler.attach(agent)
 
     # 8. 在 Agent 创建后保存 browser_session 引用
     # 通过 monkey-patch Agent.run 来获取

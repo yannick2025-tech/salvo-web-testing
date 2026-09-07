@@ -62,3 +62,8 @@ runner:
   step_timeout: 180
   max_actions_per_step: 5
   max_failures: 5
+
+# 计量（profiling）：量化每次 LLM 调用 prompt 各部分占比（纯观测，不影响执行）。
+# 用于定位「token 花在哪」、为 prompt 裁剪提供基线；优化完成后可置 false 关闭。
+profiling:
+  enabled: true
