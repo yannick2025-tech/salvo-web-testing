@@ -21,7 +21,7 @@
   - `test`：测试相关
   - `chore`：构建/工具/杂项（依赖、配置、脚本等）
   - `perf`：性能优化
-- **scope**（可选）：变更影响的模块，如 `memory`、`watchdog`、`integration`、`uat-login`。
+- **scope**（可选）：变更影响的模块，如 `memory`、`watchdog`、`integration`、`runner`。
 - **subject**（必填）：
   - 使用祈使句、现在时（如 `add`、`fix`、`update`，不用 `added`/`fixed`）。
   - 首字母小写，结尾不加句号。
