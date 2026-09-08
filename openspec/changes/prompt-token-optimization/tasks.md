@@ -17,4 +17,4 @@
 ## 4. 测试与验证
 
 - [x] 4.1 为 `PromptUsageProfiler` 的 XML 块解析与 token 估算逻辑编写单元测试（`tests/test_prompt_profiler.py`）
-- [ ] 4.2 跑一次现有用例（`cases/manhattan/login_and_query.yaml`），核对计量报告各块之和与总 prompt token 量级一致，并输出首份基线报告
+- [x] 4.2 跑一次现有用例（`cases/manhattan/login_and_query.yaml`），核对计量报告各块之和与总 prompt token 量级一致，并输出首份基线报告
