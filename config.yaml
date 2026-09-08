@@ -63,7 +63,7 @@ runner:
   max_actions_per_step: 5
   max_failures: 5
   # DOM 视口裁剪（方案B）：收紧 browser-use 视口阈值，让「只列视口内元素」生效。
-  # 默认 1000 过宽，大列表页面大量视口外记录被列入；收紧为 200（可梯度测试 0/200/500）。
+  # 默认 1000 过宽，大列表页面大量视口外记录被列入；收紧为 200（梯度测试 0/200 后，200 为最优点）。
   viewport_threshold: 200
 
 # 计量（profiling）：量化每次 LLM 调用 prompt 各部分占比（纯观测，不影响执行）。
