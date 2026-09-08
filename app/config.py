@@ -78,6 +78,20 @@ class RunnerConfig(BaseModel):
     max_failures: int = Field(default=5, ge=1, description="连续失败次数上限，超过则停")
     # DOM 视口裁剪（方案B）：收紧 browser-use 视口阈值（默认 1000 → 200）
     viewport_threshold: Optional[int] = Field(default=200, ge=0, description="DOM 序列化视口阈值（像素），None=用 browser-use 默认 1000")
+    # 工具精简（方案C1）：排除本项目用不到的工具
+    tool_exclude: list[str] = Field(
+        default_factory=lambda: [
+            "search",
+            "upload_file",
+            "save_as_pdf",
+            "write_file",
+            "replace_file",
+            "read_file",
+            "find_text",
+            "close",
+        ],
+        description="排除的工具名清单",
+    )
 
 
 class ProfilingConfig(BaseModel):

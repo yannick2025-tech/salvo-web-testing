@@ -443,6 +443,7 @@ def create_memory_agent(
     config: Any = None,
     profiling_enabled: bool = False,
     viewport_threshold: Optional[int] = None,
+    tool_exclude: Optional[list[str]] = None,
     **kwargs,
 ) -> Any:
     """
@@ -472,7 +473,7 @@ def create_memory_agent(
     # 3. 构造 Tools（自带全部默认浏览器动作）并注册自定义 Tool: follow_memory
     # browser-use 0.13.10 中 Registry.action 是"装饰器"：name 取自函数 __name__，
     # 且需通过 Tools(...) 传给 Agent（Agent 要求 tools 是 Tools，而非裸 Registry）。
-    tools = Tools()
+    tools = Tools(exclude_actions=tool_exclude)
     try:
         tools.registry.action(
             description=(
