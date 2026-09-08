@@ -27,6 +27,3 @@ env/
 
 # 运行时产物
 *.log
-
-# 中间文档
-docs/issues
