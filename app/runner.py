@@ -98,6 +98,7 @@ async def _run(case_path: str, config: Config, platform_alias: str | None) -> No
         step_timeout=rc.step_timeout,
         max_actions_per_step=rc.max_actions_per_step,
         max_failures=rc.max_failures,
+        viewport_threshold=rc.viewport_threshold,
         profiling_enabled=config.profiling.enabled,
     )
 

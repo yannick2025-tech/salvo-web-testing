@@ -76,6 +76,8 @@ class RunnerConfig(BaseModel):
     step_timeout: int = Field(default=180, ge=30, description="单步整体超时（秒）")
     max_actions_per_step: int = Field(default=5, ge=1, le=20, description="LLM 每步最多输出 action 数")
     max_failures: int = Field(default=5, ge=1, description="连续失败次数上限，超过则停")
+    # DOM 视口裁剪（方案B）：收紧 browser-use 视口阈值（默认 1000 → 200）
+    viewport_threshold: Optional[int] = Field(default=200, ge=0, description="DOM 序列化视口阈值（像素），None=用 browser-use 默认 1000")
 
 
 class ProfilingConfig(BaseModel):

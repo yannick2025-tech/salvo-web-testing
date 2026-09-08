@@ -62,6 +62,9 @@ runner:
   step_timeout: 180
   max_actions_per_step: 5
   max_failures: 5
+  # DOM 视口裁剪（方案B）：收紧 browser-use 视口阈值，让「只列视口内元素」生效。
+  # 默认 1000 过宽，大列表页面大量视口外记录被列入；收紧为 200（可梯度测试 0/200/500）。
+  viewport_threshold: 200
 
 # 计量（profiling）：量化每次 LLM 调用 prompt 各部分占比（纯观测，不影响执行）。
 # 用于定位「token 花在哪」、为 prompt 裁剪提供基线；优化完成后可置 false 关闭。

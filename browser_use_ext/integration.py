@@ -442,6 +442,7 @@ def create_memory_agent(
     config_path: str = "./memory/config.json",
     config: Any = None,
     profiling_enabled: bool = False,
+    viewport_threshold: Optional[int] = None,
     **kwargs,
 ) -> Any:
     """
@@ -561,6 +562,12 @@ def create_memory_agent(
             agent_kwargs[key] = value
 
     agent = Agent(**agent_kwargs)
+
+    # 挂载 DOM 视口裁剪（方案B，纯项目层 patch，不影响执行）
+    if viewport_threshold is not None:
+        from .dom_patch import patch_viewport_threshold
+
+        patch_viewport_threshold(viewport_threshold)
 
     # 挂载 prompt 计量（纯观测，不影响执行）
     if profiling_enabled:
