@@ -171,9 +171,10 @@ class PromptUsageProfiler:
         if not self.steps:
             return "(无计量数据)"
 
+        n = len(self.steps)
         sums = {
-            "system": self.system_chars,
-            "tools": self.tools_chars,
+            "system": self.system_chars * n,
+            "tools": self.tools_chars * n,
             "task+state": sum(s["task+state"] for s in self.steps),
             "history": sum(s["history"] for s in self.steps),
             "browser_state(DOM)": sum(s["browser_state(DOM)"] for s in self.steps),
@@ -183,6 +184,7 @@ class PromptUsageProfiler:
         total_chars = sum(sums.values())
 
         lines = ["", "===== Prompt Usage Profile ====="]
+        lines.append(f"  (全程累计，共 {n} 次 LLM 调用；固定开销 system/tools 按单次值 × {n})")
         header = "  {:<20} {:>12} {:>12} {:>8}".format("part", "chars", "est_tokens", "pct")
         lines.append(header)
         for col in _COLUMNS:
@@ -193,6 +195,9 @@ class PromptUsageProfiler:
             )
         lines.append(
             "  {:<20} {:>12,} {:>12,} {:>7.1f}%".format("TOTAL", total_chars, est_tokens(total_chars), 100.0)
+        )
+        lines.append(
+            "  (固定开销单次: system={:,}, tools={:,})".format(self.system_chars, self.tools_chars)
         )
         if dom_body:
             lines.append(

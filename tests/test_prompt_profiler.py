@@ -203,3 +203,17 @@ def test_attach_skips_when_no_message_manager():
 
     profiler.attach(NoMMAgent())  # 不应抛异常
     assert profiler.steps == []
+
+
+def test_report_accumulates_fixed_overhead_per_step():
+    """固定开销 system/tools 在全程累计口径下应 ×N，而不是只算单次。"""
+    profiler = PromptUsageProfiler()
+    profiler.system_chars = 4000
+    profiler.tools_chars = 2000
+    profiler.steps = [
+        {"system": 0, "tools": 0, "task+state": 100, "history": 50, "browser_state(DOM)": 800, "context": 0, "_dom_body": 700},
+        {"system": 0, "tools": 0, "task+state": 100, "history": 60, "browser_state(DOM)": 900, "context": 0, "_dom_body": 800},
+    ]
+    report = profiler.report()
+    assert "全程累计" in report
+    assert "固定开销单次: system=4,000, tools=2,000" in report
