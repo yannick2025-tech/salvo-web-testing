@@ -100,6 +100,13 @@ class ProfilingConfig(BaseModel):
     enabled: bool = True
 
 
+class ReportConfig(BaseModel):
+    """HTML 测试报告生成配置。"""
+
+    output_dir: str = Field(default="./reports", description="报告输出根目录")
+    detail: bool = Field(default=False, description="详细模式（额外含 thinking/URL/token 等）")
+
+
 class Config(BaseModel):
     """总配置。"""
 
@@ -110,6 +117,7 @@ class Config(BaseModel):
     popup_watchdog: dict[str, Any] = Field(default_factory=dict)
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     profiling: ProfilingConfig = Field(default_factory=ProfilingConfig)
+    report: ReportConfig = Field(default_factory=ReportConfig)
 
     def resolve_platform(self, host: str) -> Optional[str]:
         """按 host 精确匹配平台，返回平台别名；未命中返回 None。"""

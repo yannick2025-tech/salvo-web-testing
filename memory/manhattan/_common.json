@@ -1,0 +1,105 @@
+{
+  "version": "1.0",
+  "memories": [
+    {
+      "id": "mem_dfccac82",
+      "created_at": "2026-09-07T16:17:18.041753",
+      "updated_at": "2026-09-08T17:41:58.929130",
+      "success_count": 2,
+      "last_used_at": "2026-09-08T17:41:58.929118",
+      "key": {
+        "mode": "flat",
+        "flat_key": "未知页面 > 请输入您的账号",
+        "hierarchical_path": []
+      },
+      "element_signature": {
+        "tag": "input",
+        "role": null,
+        "aria_label": null,
+        "text_fragments": [
+          "请输入您的账号"
+        ],
+        "class_fragments": [
+          "el-input__inner"
+        ],
+        "attributes": {
+          "placeholder": "请输入您的账号",
+          "type": "text"
+        }
+      },
+      "operation_steps": [
+        {
+          "step": 1,
+          "description": "输入文本=请输入您的账号 .el-input__inner，值=18936879143",
+          "action": "input",
+          "target_hint": "文本=请输入您的账号 .el-input__inner",
+          "element_signature": {
+            "tag": "input",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [
+              "请输入您的账号"
+            ],
+            "class_fragments": [
+              "el-input__inner"
+            ],
+            "attributes": {
+              "placeholder": "请输入您的账号",
+              "type": "text"
+            }
+          },
+          "input_value": "18936879143"
+        },
+        {
+          "step": 2,
+          "description": "输入文本=请输入您的密码 .el-input__inner，值=Abcd1234!@#$",
+          "action": "input",
+          "target_hint": "文本=请输入您的密码 .el-input__inner",
+          "element_signature": {
+            "tag": "input",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [
+              "请输入您的密码"
+            ],
+            "class_fragments": [
+              "el-input__inner"
+            ],
+            "attributes": {
+              "placeholder": "请输入您的密码",
+              "type": "password"
+            }
+          },
+          "input_value": "Abcd1234!@#$"
+        },
+        {
+          "step": 3,
+          "description": "点击文本=登录 .el-button.el-button--primary",
+          "action": "click",
+          "target_hint": "文本=登录 .el-button.el-button--primary",
+          "element_signature": {
+            "tag": "button",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [
+              "登录"
+            ],
+            "class_fragments": [
+              "el-button",
+              "el-button--primary"
+            ],
+            "attributes": {
+              "type": "button"
+            }
+          },
+          "input_value": null
+        }
+      ],
+      "context": {
+        "url_pattern": "*/Login*",
+        "page_title_fragment": "壳牌充电管理平台",
+        "host": "uat-manhattan.shell.com.cn"
+      }
+    }
+  ]
+}

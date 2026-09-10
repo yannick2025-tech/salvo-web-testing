@@ -1,0 +1,119 @@
+{
+  "version": "1.0",
+  "memories": [
+    {
+      "id": "mem_9ae53933",
+      "created_at": "2026-09-07T16:17:18.042384",
+      "updated_at": "2026-09-08T17:41:58.930689",
+      "success_count": 3,
+      "last_used_at": "2026-09-08T17:41:58.930687",
+      "key": {
+        "mode": "flat",
+        "flat_key": "未知页面 > 所有",
+        "hierarchical_path": []
+      },
+      "element_signature": {
+        "tag": "input",
+        "role": null,
+        "aria_label": null,
+        "text_fragments": [
+          "所有"
+        ],
+        "class_fragments": [
+          "el-input__inner"
+        ],
+        "attributes": {
+          "placeholder": "所有",
+          "type": "text"
+        }
+      },
+      "operation_steps": [
+        {
+          "step": 1,
+          "description": "点击文本=所有 .el-input__inner",
+          "action": "click",
+          "target_hint": "文本=所有 .el-input__inner",
+          "element_signature": {
+            "tag": "input",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [
+              "所有"
+            ],
+            "class_fragments": [
+              "el-input__inner"
+            ],
+            "attributes": {
+              "placeholder": "所有",
+              "type": "text"
+            }
+          },
+          "input_value": null
+        },
+        {
+          "step": 2,
+          "description": "点击文本=江苏省 .el-cascader-node",
+          "action": "click",
+          "target_hint": "文本=江苏省 .el-cascader-node",
+          "element_signature": {
+            "tag": "li",
+            "role": "menuitem",
+            "aria_label": null,
+            "text_fragments": [
+              "江苏省"
+            ],
+            "class_fragments": [
+              "el-cascader-node"
+            ],
+            "attributes": {}
+          },
+          "input_value": null
+        },
+        {
+          "step": 3,
+          "description": "点击.el-checkbox__inner",
+          "action": "click",
+          "target_hint": ".el-checkbox__inner",
+          "element_signature": {
+            "tag": "span",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [],
+            "class_fragments": [
+              "el-checkbox__inner"
+            ],
+            "attributes": {}
+          },
+          "input_value": null
+        },
+        {
+          "step": 4,
+          "description": "点击文本=查询 .el-button.el-button--primary",
+          "action": "click",
+          "target_hint": "文本=查询 .el-button.el-button--primary",
+          "element_signature": {
+            "tag": "button",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [
+              "查询"
+            ],
+            "class_fragments": [
+              "el-button",
+              "el-button--primary"
+            ],
+            "attributes": {
+              "type": "button"
+            }
+          },
+          "input_value": null
+        }
+      ],
+      "context": {
+        "url_pattern": "*/station/site/list*",
+        "page_title_fragment": "壳牌充电管理平台",
+        "host": "uat-manhattan.shell.com.cn"
+      }
+    }
+  ]
+}

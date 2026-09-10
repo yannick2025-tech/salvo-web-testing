@@ -73,7 +73,9 @@ def _infer_platform(case_path: str) -> str | None:
     return None
 
 
-async def _run(case_path: str, config: Config, platform_alias: str | None) -> None:
+async def _run(
+    case_path: str, config: Config, platform_alias: str | None, report_enabled: bool
+) -> None:
     from browser_use_ext.integration import create_memory_agent
 
     # 1. 建模型
@@ -110,6 +112,21 @@ async def _run(case_path: str, config: Config, platform_alias: str | None) -> No
 
     # 5. 打印 token 用量（用于对比"加记忆前/后"的调用 token 差异）
     _print_token_usage(history)
+
+    # 6. 生成 HTML 报告（按开关；报告失败不影响主流程）
+    if report_enabled:
+        _generate_report(history, case, config)
+
+
+def _generate_report(history: Any, case: Any, config: Config) -> None:
+    """生成 HTML 测试报告（异常/中断也尽力生成，失败不影响主流程）。"""
+    try:
+        from .report import generate_report
+
+        report_dir = generate_report(history, case, config.report)
+        logger.info("测试报告已生成: %s/report.html", report_dir)
+    except Exception as e:  # noqa: BLE001 —— 报告失败不影响主流程
+        logger.warning("测试报告生成失败(不影响主流程): %s", e)
 
 
 def _print_token_usage(history: Any) -> None:
@@ -160,6 +177,19 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="平台别名（缺省时从用例路径 cases/<platform>/... 推断）",
     )
+    parser.add_argument(
+        "--report",
+        dest="report",
+        action="store_true",
+        default=True,
+        help="生成 HTML 测试报告（默认开启）",
+    )
+    parser.add_argument(
+        "--no-report",
+        dest="report",
+        action="store_false",
+        help="关闭 HTML 测试报告生成",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -178,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
             platform_alias,
         )
 
-    asyncio.run(_run(args.case, config, platform_alias))
+    asyncio.run(_run(args.case, config, platform_alias, args.report))
     return 0
 
 

@@ -80,3 +80,10 @@ runner:
 # 用于定位「token 花在哪」、为 prompt 裁剪提供基线；优化完成后可置 false 关闭。
 profiling:
   enabled: true
+
+# HTML 测试报告：运行结束后生成，默认标准模式（状态+截图+动作+耗时+失败原因）。
+# detail=true 时额外展示 thinking/next_goal、页面 URL/标题、token 用量。
+# token 用量始终写入报告目录下的 token_usage.log（便于离线定位）。
+report:
+  output_dir: ./reports
+  detail: false
