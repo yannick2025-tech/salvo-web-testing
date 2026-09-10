@@ -115,15 +115,25 @@ async def _run(
 
     # 6. 生成 HTML 报告（按开关；报告失败不影响主流程）
     if report_enabled:
-        _generate_report(history, case, config)
+        _generate_report(history, case, config, platform_alias)
 
 
-def _generate_report(history: Any, case: Any, config: Config) -> None:
+def _generate_report(
+    history: Any, case: Any, config: Config, platform_alias: str | None
+) -> None:
     """生成 HTML 测试报告（异常/中断也尽力生成，失败不影响主流程）。"""
     try:
         from .report import generate_report
 
-        report_dir = generate_report(history, case, config.report)
+        _, provider = config.llm.active()
+        model = provider.model
+        report_dir = generate_report(
+            history,
+            case,
+            config.report,
+            platform_alias=platform_alias or "",
+            model=model,
+        )
         logger.info("测试报告已生成: %s/report.html", report_dir)
     except Exception as e:  # noqa: BLE001 —— 报告失败不影响主流程
         logger.warning("测试报告生成失败(不影响主流程): %s", e)

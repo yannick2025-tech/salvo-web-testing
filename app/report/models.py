@@ -2,17 +2,24 @@
 
 把一次运行的历史与用例映射后，统一用这里的模型表示，供对齐/判定/渲染使用。
 与 browser-use 解耦：所有字段都是纯数据，便于单元测试。
+
+结构（自顶向下）：
+    Report（meta + platforms）
+      └─ PlatformBlock（name + cases）       —— 每个平台一个块
+           └─ CaseBlock（name/status + steps）—— 每个用例可折叠展开
+                └─ ReportStep（steps）        —— 用例步骤
+                     └─ ReportSubStep          —— LLM 执行子步骤
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 
 
 class StepStatus(str, Enum):
-    """用例步骤三态。"""
+    """步骤三态。"""
 
     SUCCESS = "success"  # 成功（绿）
     FAILED = "failed"  # 失败（红）
@@ -53,13 +60,44 @@ class ReportStep:
 
 
 @dataclass
-class ReportCase:
-    """一次运行的报告数据。"""
+class CaseBlock:
+    """报告里的一个用例（可折叠）。"""
 
     name: str = ""
     description: str = ""
-    overall_success: Optional[bool] = None  # 整体成功/失败/None(未完成)
+    status: StepStatus = StepStatus.SKIPPED  # 用例级成功/失败
+    duration: Optional[float] = None  # 用例总耗时（秒）
     final_result: str = ""
     steps: list[ReportStep] = field(default_factory=list)
     unaligned: list[ReportSubStep] = field(default_factory=list)
-    usage: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class PlatformBlock:
+    """报告里的一个平台分组。"""
+
+    name: str = ""
+    cases: list[CaseBlock] = field(default_factory=list)
+
+
+@dataclass
+class ReportMeta:
+    """报告上半部分的元信息。"""
+
+    report_id: str = ""
+    run_time: str = ""
+    model: str = ""
+    total_tokens: str = ""
+    browser: str = ""
+    total_cases: int = 0
+    passed: int = 0
+    failed: int = 0
+    pass_rate: str = ""
+
+
+@dataclass
+class Report:
+    """一次运行的完整报告。"""
+
+    meta: ReportMeta = field(default_factory=ReportMeta)
+    platforms: list[PlatformBlock] = field(default_factory=list)

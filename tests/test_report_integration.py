@@ -118,19 +118,23 @@ def test_generate_report_produces_html_and_screenshots(tmp_path):
     )
     config = SimpleNamespace(output_dir=str(tmp_path), detail=False)
 
-    report_dir = generate_report(history, _case(), config)
+    report_dir = generate_report(
+        history, _case(), config, platform_alias="manhattan", model="qwen3.7-max"
+    )
 
     p = Path(report_dir)
     assert (p / "report.html").exists()
-    assert (p / "screenshots" / "1-1.png").exists()
-    assert (p / "screenshots" / "2-1.png").exists()
+    assert (p / "screenshots" / "1-1-1-1.png").exists()
+    assert (p / "screenshots" / "1-1-2-1.png").exists()
     assert (p / "token_usage.log").exists()
 
     content = (p / "report.html").read_text(encoding="utf-8")
-    assert "登录测试" in content
+    assert "Web UI 测试报告" in content
     assert "登录按钮" in content
-    assert 'src="screenshots/2-1.png"' in content
-    assert "通过" in content  # 整体成功徽章
+    assert "manhattan" in content
+    assert "qwen3.7-max" in content
+    assert 'src="screenshots/1-1-2-1.png"' in content
+    assert "通过" in content  # 用例成功徽章
 
 
 def test_generate_report_detail_mode_contains_thinking(tmp_path):

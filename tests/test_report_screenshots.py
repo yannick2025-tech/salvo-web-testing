@@ -1,9 +1,8 @@
 """截图落盘与保留策略单元测试。"""
 
 import base64
-from pathlib import Path
 
-from app.report.models import ReportCase, ReportStep, ReportSubStep
+from app.report.models import CaseBlock, PlatformBlock, Report, ReportStep, ReportSubStep
 from app.report.screenshots import (
     apply_retention_policy,
     decode_screenshot,
@@ -57,22 +56,31 @@ def test_retention_policy_unaligned_all_kept():
 
 
 def test_save_screenshots_writes_files(tmp_path):
-    report = ReportCase(
-        name="t",
-        steps=[
-            ReportStep(
-                index=1,
-                action="click",
-                target="x",
-                substeps=[_ss(True), _ss(False)],
+    report = Report(
+        platforms=[
+            PlatformBlock(
+                name="manhattan",
+                cases=[
+                    CaseBlock(
+                        name="t",
+                        steps=[
+                            ReportStep(
+                                index=1,
+                                action="click",
+                                target="x",
+                                substeps=[_ss(True), _ss(False)],
+                            )
+                        ],
+                        unaligned=[_ss(False, screenshot=base64.b64encode(b"u").decode())],
+                    )
+                ],
             )
-        ],
-        unaligned=[_ss(False, screenshot=base64.b64encode(b"u").decode())],
+        ]
     )
     screenshots_dir = tmp_path / "screenshots"
     save_screenshots(report, screenshots_dir)
 
-    assert (screenshots_dir / "1-1.png").exists()
-    assert (screenshots_dir / "1-2.png").exists()
-    assert (screenshots_dir / "unaligned-1.png").exists()
-    assert report.steps[0].substeps[0].screenshot_path == "screenshots/1-1.png"
+    assert (screenshots_dir / "1-1-1-1.png").exists()
+    assert (screenshots_dir / "1-1-1-2.png").exists()
+    assert (screenshots_dir / "1-1-unaligned-1.png").exists()
+    assert report.platforms[0].cases[0].steps[0].substeps[0].screenshot_path == "screenshots/1-1-1-1.png"

@@ -185,15 +185,45 @@ def extract_substeps(history: Any) -> list[ReportSubStep]:
 
 
 def _match_texts(ss: ReportSubStep, target: str, extra_texts: list[str]) -> bool:
-    """判断子步骤与用例步骤的文本是否相关（子串/包含）。"""
+    """判断子步骤与用例步骤的文本是否相关。
+
+    仅允许「精确相等」或「元素文本是 target 的子串」两种方向；不允许
+    「target 是元素文本的真子串」，否则父菜单（如「订单管理」）会误吞
+    子菜单（如「充电订单管理」）。
+    """
     for c in [target] + list(extra_texts):
         if not c:
             continue
         c = str(c).strip()
         if not c:
             continue
-        if c in ss.target_text or ss.target_text in c:
+        if c == ss.target_text:
             return True
+        if ss.target_text and ss.target_text in c:
+            return True
+    return False
+
+
+def _fragments(text: str) -> list[str]:
+    """把句子按常见分隔符拆成关键词片段，用于宽松匹配。"""
+    import re
+
+    return [p for p in re.split(r"[/、，,。；;\s]+", text) if p]
+
+
+def _loose_match(text: str, target: str, extra_texts: list[str]) -> bool:
+    """宽松文本匹配：完整串或拆分片段命中即算匹配。"""
+    for c in [target] + list(extra_texts):
+        if not c:
+            continue
+        c = str(c).strip()
+        if not c:
+            continue
+        if c in text:
+            return True
+        for frag in _fragments(c):
+            if frag and frag in text:
+                return True
     return False
 
 
@@ -201,8 +231,14 @@ def _matches(ss: ReportSubStep, action: str, target: str, extra_texts: list[str]
     """判断子步骤是否属于某个用例步骤。"""
     cat = action_category(ss.action_names[0]) if ss.action_names else ""
 
-    # 精确类别匹配（goto/input/hover）
-    if action in ("goto", "input", "hover") and cat == action:
+    # goto：无元素文本，按类别匹配
+    if action == "goto" and cat == "goto":
+        return True
+
+    # input / hover：类别匹配，有文本时用文本区分（避免连续同类别步骤误吞）
+    if action in ("input", "hover") and cat == action:
+        if ss.target_text:
+            return _match_texts(ss, target, extra_texts)
         return True
 
     # click 家族：click / select_option / check 都由 click 构成，需文本辅助
@@ -213,12 +249,13 @@ def _matches(ss: ReportSubStep, action: str, target: str, extra_texts: list[str]
     ):
         return _match_texts(ss, target, extra_texts) or not ss.target_text
 
-    # verify：无固定动作，靠 next_goal/evaluation 关键词
+    # verify：其 LLM 子步骤通常是 done（conclude 类别），直接按类别匹配；
+    # 非 done 时退回 next_goal/evaluation 宽松关键词匹配。
     if action == "verify":
+        if cat == "conclude":
+            return True
         text = ss.next_goal or ss.evaluation or ""
-        for c in [target] + list(extra_texts):
-            if c and str(c) in text:
-                return True
+        return _loose_match(text, target, extra_texts)
 
     # conclude：done 动作
     if action == "conclude" and cat == "conclude":

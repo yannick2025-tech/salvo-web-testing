@@ -10,7 +10,7 @@ import base64
 from pathlib import Path
 from typing import Optional
 
-from .models import ReportCase, ReportStep, ReportSubStep
+from .models import Report, ReportStep, ReportSubStep
 
 
 def decode_screenshot(screenshot: str) -> Optional[bytes]:
@@ -57,16 +57,18 @@ def _write_png(ss: ReportSubStep, screenshots_dir: Path, filename: str) -> None:
     ss.screenshot_path = f"screenshots/{filename}"
 
 
-def save_screenshots(report: ReportCase, screenshots_dir: Path) -> None:
-    """为报告所有子步骤落盘截图（应用保留策略）。"""
-    apply_retention_policy(report.steps, report.unaligned)
+def save_screenshots(report: Report, screenshots_dir: Path) -> None:
+    """为报告所有用例落盘截图（应用保留策略，命名跨平台/用例唯一）。"""
     screenshots_dir.mkdir(parents=True, exist_ok=True)
 
-    for step in report.steps:
-        for j, ss in enumerate(step.substeps, start=1):
-            if not ss.keep_screenshot:
-                continue
-            _write_png(ss, screenshots_dir, f"{step.index}-{j}.png")
-
-    for ss in report.unaligned:
-        _write_png(ss, screenshots_dir, f"unaligned-{ss.index}.png")
+    for pi, platform in enumerate(report.platforms, start=1):
+        for ci, case in enumerate(platform.cases, start=1):
+            apply_retention_policy(case.steps, case.unaligned)
+            prefix = f"{pi}-{ci}-"
+            for step in case.steps:
+                for j, ss in enumerate(step.substeps, start=1):
+                    if not ss.keep_screenshot:
+                        continue
+                    _write_png(ss, screenshots_dir, f"{prefix}{step.index}-{j}.png")
+            for ss in case.unaligned:
+                _write_png(ss, screenshots_dir, f"{prefix}unaligned-{ss.index}.png")

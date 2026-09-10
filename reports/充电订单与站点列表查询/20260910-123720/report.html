@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Web UI 测试报告</title>
+<style>
+:root { --bg:#fbfaf7; --panel:#fffdfa; --text:#141414; --muted:#8a857a;
+  --line:#e6e1d6; --accent:#0a5cff; --pass:#0f8a4d; --fail:#d22730; --skip:#a8a093; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:var(--text); font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  padding-bottom:72px; }
+.serif { font-family:Georgia,"Songti SC","Noto Serif SC",serif; }
+.wrap { max-width:1200px; margin:0 auto; padding:0 32px; }
+
+.top { padding:56px 0 0; border-bottom:2px solid var(--text); }
+.kicker { font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); }
+h1 { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:44px; font-weight:600;
+  letter-spacing:-.01em; margin-top:10px; line-height:1.1; }
+.sub { color:var(--muted); font-size:13px; margin-top:12px; padding-bottom:20px; }
+
+.stats { display:grid; grid-template-columns:repeat(4,1fr); margin-top:28px; }
+.stat { padding:4px 28px; border-left:1px solid var(--line); }
+.stat:first-child { border-left:none; padding-left:0; }
+.stat .lab { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.stat .val { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:46px; font-weight:600;
+  line-height:1.1; margin-top:6px; font-variant-numeric:tabular-nums; }
+.stat.good .val { color:var(--pass); }
+.stat.bad .val { color:var(--fail); }
+
+.metainfo { display:flex; flex-wrap:wrap; gap:10px 40px; margin-top:26px; padding:0 0 20px;
+  border-bottom:1px solid var(--line); }
+.metainfo .it { font-size:13px; display:flex; gap:10px; align-items:baseline; }
+.metainfo b { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+.metainfo span { font-weight:600; font-variant-numeric:tabular-nums; }
+
+.platform { margin-top:36px; }
+.ph { display:flex; align-items:baseline; gap:14px; margin-bottom:16px; }
+.ph h2 { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:24px; font-weight:600; }
+.ph .cnt { font-size:12px; color:var(--muted); }
+.cases { display:flex; flex-direction:column; }
+.case { border-top:1px solid var(--line); }
+.case:last-child { border-bottom:1px solid var(--line); }
+.case-head { display:flex; align-items:center; gap:16px; padding:20px 4px; border:none;
+  background:none; text-align:left; font-size:16px; color:var(--text); width:100%; cursor:pointer; }
+.badge { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 0; }
+.badge.pass { color:var(--pass); }
+.badge.fail { color:var(--fail); }
+.badge.skip { color:var(--skip); }
+.cname { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:19px; font-weight:600; flex:1; }
+.cmeta { color:var(--muted); font-size:12.5px; font-variant-numeric:tabular-nums; }
+.chev { width:18px; height:18px; color:var(--muted); transition:transform .25s; flex:none; }
+.case.open .chev { transform:rotate(90deg); }
+.case-body { max-height:0; overflow:hidden; transition:max-height .4s cubic-bezier(.4,0,.2,1); }
+.case.open .case-body { max-height:9000px; }
+.cb-in { padding:0 4px 24px; }
+
+.step { margin-bottom:2px; border:1px solid var(--line); }
+.step-head { display:flex; align-items:center; gap:12px; padding:12px 18px; font-size:13.5px; background:var(--bg); }
+.idx { font-weight:700; color:var(--muted); font-size:12px; }
+.stitle { font-weight:600; flex:1; }
+.dot { width:8px; height:8px; border-radius:50%; flex:none; }
+.dot.pass { background:var(--pass); }
+.dot.fail { background:var(--fail); }
+.dot.skip { background:var(--skip); }
+.substeps { padding:6px 18px 14px; }
+.substep { display:flex; gap:18px; padding:11px 0; border-top:1px solid var(--line); }
+.substep:first-child { border-top:none; }
+.info { flex:1; font-size:13px; line-height:1.6; min-width:0; }
+.act { font-weight:600; }
+.m2 { color:var(--muted); font-size:12px; margin-top:2px; word-break:break-all; }
+.err { color:var(--fail); font-size:12px; margin-top:4px; }
+.shot { width:200px; height:112px; flex:none; object-fit:cover; background:#1c1c1c; border:none; }
+.no-shot { width:200px; height:112px; flex:none; display:flex; align-items:center; justify-content:center;
+  font-size:12px; color:var(--muted); background:#f0ede4; }
+.unaligned { border-color:#d8d0c2; }
+.ual-head { color:var(--muted); font-size:13px; font-weight:600; padding:12px 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top">
+<div class="kicker">Test Report</div>
+<h1 class="serif">Web UI 测试报告</h1>
+<div class="sub">报告 ID RPT-20260910-123720 · 由 py-web-testing 自动生成</div>
+</div>
+<div class="stats"><div class="stat"><div class="lab">总用例</div><div class="val">1</div></div><div class="stat class="good""><div class="lab">成功</div><div class="val">0</div></div><div class="stat class="bad""><div class="lab">失败</div><div class="val">1</div></div><div class="stat"><div class="lab">通过率</div><div class="val">0%</div></div></div><div class="metainfo"><div class="it"><b>运行时间</b><span>2026-09-10 12:37:20</span></div><div class="it"><b>模型</b><span>qwen3.7-max</span></div><div class="it"><b>总 token</b><span>105000</span></div><div class="it"><b>浏览器</b><span>Chromium</span></div></div>
+<section class="platform">
+<div class="ph">
+<h2>manhattan</h2>
+<span class="cnt">1 个用例</span>
+</div>
+<div class="cases">
+<article class="case">
+<button class="case-head" aria-expanded="false">
+<span class="badge failed">失败</span>
+<span class="cname">充电订单与站点列表查询</span>
+<span class="cmeta">32s · 18 步</span>
+<svg class="chev" viewBox="0 0 20 20" fill="none"><path d="M7 5l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+</button>
+<div class="case-body"><div class="cb-in">
+<div class="m2" style="padding:8px 0 4px">用例1(充电订单管理)成功；用例2(站点列表)成功。</div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#01</span>
+<span class="stitle">goto · 登录页</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">打开页面 https://demo.example.com/login</span> · 1.5s
+<div class="m2"><b>thinking：</b>进入登录页</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-1-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#02</span>
+<span class="stitle">input · 请输入您的账号</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">输入 ***</span> · 1.5s
+<div class="m2"><b>thinking：</b>填写账号</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-2-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#03</span>
+<span class="stitle">input · 请输入您的密码</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">输入 ***</span> · 1.5s
+<div class="m2"><b>thinking：</b>填写密码</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-3-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#04</span>
+<span class="stitle">click · 登录按钮</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>thinking：</b>点击登录</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-4-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#05</span>
+<span class="stitle">verify · 登录成功</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">结束</span> · 1.5s
+<div class="m2"><b>next_goal：</b>确认页面已跳转到后台首页，不再停留在登录页</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-5-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#06</span>
+<span class="stitle">click · 订单管理</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-6-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#07</span>
+<span class="stitle">click · 充电订单管理</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-7-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#08</span>
+<span class="stitle">select_option · 单据时间</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>thinking：</b>点开下拉</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-8-1.png" alt="截图" loading="lazy">
+</div>
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>thinking：</b>重试点开下拉</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<div class="no-shot">无截图</div>
+</div>
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>thinking：</b>成功展开下拉</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-8-3.png" alt="截图" loading="lazy">
+</div>
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>thinking：</b>选择订单创建时间</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-8-4.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#09</span>
+<span class="stitle">verify · 日期范围</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">结束</span> · 1.5s
+<div class="m2"><b>next_goal：</b>确认日期为过去10天不含今天</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-9-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#10</span>
+<span class="stitle">click · 查询</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-10-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#11</span>
+<span class="stitle">click · 电站管理</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-11-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#12</span>
+<span class="stitle">click · 站点列表</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-12-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#13</span>
+<span class="stitle">click · 城市名称</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-13-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#14</span>
+<span class="stitle">hover · 江苏省</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">悬停</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-14-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#15</span>
+<span class="stitle">check · 南京市</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-15-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#16</span>
+<span class="stitle">check · 江苏省</span>
+<span class="dot failed"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>thinking：</b>取消勾选江苏</div>
+<div class="m2"><b>next_goal：</b>取消勾选江苏省</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-16-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#17</span>
+<span class="stitle">click · 查询</span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">点击</span> · 1.5s
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-17-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+<div class="step">
+<div class="step-head">
+<span class="idx">#18</span>
+<span class="stitle">conclude · </span>
+<span class="dot success"></span>
+</div>
+<div class="substeps">
+<div class="substep">
+<div class="info"><span class="act">结束</span> · 1.5s
+<div class="m2"><b>thinking：</b>输出结论</div>
+<div class="m2"><b>url：</b>https://demo.example.com/admin</div>
+<div class="m2"><b>title：</b>后台管理</div>
+</div>
+<img class="shot" src="screenshots/1-1-18-1.png" alt="截图" loading="lazy">
+</div>
+</div></div>
+</div></div></article>
+</div></section>
+</div>
+<script>document.querySelectorAll('.case-head').forEach(function(h){h.addEventListener('click',function(){var c=h.parentElement;var o=c.classList.toggle('open');h.setAttribute('aria-expanded',o);});});</script>
+</body>
+</html>
