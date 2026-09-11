@@ -50,6 +50,7 @@ _AUX_ACTIONS = frozenset({
     "scroll", "scroll_down", "scroll_up", "wait",
     "send_keys", "press_key", "read_file", "write_file",
     "extract_content", "search_page", "find_text",
+    "evaluate",  # browser-use 的 JS 评估（检查页面状态），归当前不推进
 })
 
 
@@ -369,36 +370,35 @@ def align(
             continue
         cat = action_category(ss.action_names[0]) if ss.action_names else ""
         a, t, extra = meta[case_idx]
+        advance = meta[case_idx][0] != "select_option"  # 匹配后是否推进
 
-        # 1) 尝试匹配当前 / 下一步 / 辅助 / 空文本主操作，否则未归类
+        # 1) 尝试匹配当前步骤（含 LLM 意图文本兜底）
         if _matches(ss, a, t, extra):
             steps[case_idx].substeps.append(ss)
-        elif case_idx + 1 < len(steps):
+            if advance:
+                case_idx += 1
+            continue
+        # 2) 尝试匹配下一步
+        if case_idx + 1 < len(steps):
             na, nt, nextra = meta[case_idx + 1]
             if _matches(ss, na, nt, nextra):
                 case_idx += 1
                 steps[case_idx].substeps.append(ss)
-            elif is_aux_substep(ss):
-                # 辅助动作（scroll/wait 等）归到当前正在进行的用例步骤，不推进
-                steps[case_idx].substeps.append(ss)
+                if meta[case_idx][0] != "select_option":
+                    case_idx += 1
                 continue
-            elif not ss.target_text and cat in _MAIN_CATS:
-                # 空目标文本的主操作：按顺序归当前（推进由下方统一处理）
-                steps[case_idx].substeps.append(ss)
-            else:
-                unaligned.append(ss)
-                continue
-        elif is_aux_substep(ss):
+        # 3) 辅助动作（scroll/wait/evaluate 等）：归当前不推进
+        if is_aux_substep(ss):
             steps[case_idx].substeps.append(ss)
             continue
-        elif not ss.target_text and cat in _MAIN_CATS:
+        # 4) 已知主操作（click/input/hover/select_option/check/goto）未匹配任何
+        #    步骤：按顺序归当前并推进（启发式兜底，避免 unaligned 堆积导致
+        #    后续步骤错位"该步骤未执行"）
+        if cat in _MAIN_CATS:
             steps[case_idx].substeps.append(ss)
-        else:
-            unaligned.append(ss)
+            if advance:
+                case_idx += 1
             continue
-
-        # 2) 推进：一个用例步骤通常对应一个主动作；select_option 例外
-        #    （它由「点击展开 + 点击选项」多个子步骤构成），匹配后不推进。
-        if meta[case_idx][0] != "select_option":
-            case_idx += 1
+        # 5) 真正不匹配（未知 cat，如 evaluate/search 等）→ unaligned
+        unaligned.append(ss)
     return steps, unaligned
