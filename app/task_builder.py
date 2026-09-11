@@ -67,16 +67,16 @@ def _step_text(step: Step) -> str:
     return step.target
 
 
-def build_task(case: Case, login_url: str) -> str:
-    """把用例转成自然语言 task 文本。
+def build_steps_task(steps: list[Step], login_url: str) -> str:
+    """把一组步骤转成自然语言 task 文本（setup 与单个 case 通用）。
 
     Args:
-        case: 用例对象。
-        login_url: 当前平台的登录 URL（从平台配置注入，用例中不出现）。
+        steps: 步骤列表。
+        login_url: 当前平台的登录 URL（goto 步骤的 URL 缺省时注入）。
     """
     lines: list[str] = []
     has_conclude = False
-    for i, step in enumerate(case.steps, start=1):
+    for i, step in enumerate(steps, start=1):
         # goto 步骤的 URL 若未在 params 中指定，则用当前平台的 login_url
         if step.action == "goto" and not (step.params or {}).get("url"):
             step = step.model_copy(update={"params": {**step.params, "url": login_url}})
@@ -94,3 +94,13 @@ def build_task(case: Case, login_url: str) -> str:
             "避免不必要的长思考导致大 DOM 场景下的超时重试。"
         )
     return "\n".join(lines)
+
+
+def build_task(case: Case, login_url: str) -> str:
+    """把用例转成自然语言 task 文本（向后兼容：等价于 build_steps_task(case.steps)）。
+
+    Args:
+        case: 用例对象。
+        login_url: 当前平台的登录 URL（从平台配置注入，用例中不出现）。
+    """
+    return build_steps_task(case.steps, login_url)

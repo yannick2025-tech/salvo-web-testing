@@ -1,6 +1,11 @@
 """YAML 测试用例加载。
 
-用例为结构化步骤列表，字段：
+两种格式：
+
+1. 套件（suite）：`setup`（可选公共前置，如登录）+ `cases`（多个用例）。
+2. 单用例（旧格式，向后兼容）：顶层直接 `steps`。
+
+字段：
 - action: 动作类型（goto/input/click/select_option/hover/check/verify/conclude）
 - target: 意图描述（做什么）
 - locator: 可选定位信息（优先从记忆取，用例中可省略）
@@ -15,7 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 
 class Step(BaseModel):
@@ -35,6 +40,18 @@ class Case(BaseModel):
     steps: list[Step]
 
 
+class Suite(BaseModel):
+    """一个测试套件：可选公共前置（setup）+ 多个用例（cases）。
+
+    执行时 setup 只跑一次（如登录），随后各 case 复用同一浏览器会话依次执行。
+    """
+
+    name: str
+    description: str = Field(default="")
+    setup: list[Step] = Field(default_factory=list)
+    cases: list[Case] = Field(default_factory=list)
+
+
 # 允许的 action 类型
 ALLOWED_ACTIONS = {
     "goto",
@@ -48,14 +65,17 @@ ALLOWED_ACTIONS = {
 }
 
 
-def load_case(path: str) -> Case:
-    """从 YAML 加载并校验一个测试用例。
+def _check_actions(steps: list[Step], where: str) -> None:
+    """校验 steps 的 action 类型。where 用于错误信息前缀（如「setup 」「用例「x」」）。"""
+    for i, step in enumerate(steps, start=1):
+        if step.action not in ALLOWED_ACTIONS:
+            raise ValueError(
+                f"{where}第 {i} 步 action={step.action!r} 非法，允许: {sorted(ALLOWED_ACTIONS)}"
+            )
 
-    Raises:
-        FileNotFoundError: 文件不存在。
-        ValidationError: 字段缺失/非法。
-        ValueError: 出现未知 action 类型。
-    """
+
+def _read_data(path: str) -> dict[str, Any]:
+    """读取 YAML 并展开环境变量占位符，返回顶层映射。"""
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"用例文件不存在: {p}")
@@ -70,18 +90,52 @@ def load_case(path: str) -> Case:
 
     if not isinstance(data, dict):
         raise ValueError("用例文件顶层必须是映射")
+    return data
+
+
+def load_case(path: str) -> Case:
+    """从 YAML 加载并校验单个测试用例（旧格式：顶层直接 steps）。"""
+    data = _read_data(path)
 
     steps = data.get("steps")
     if not isinstance(steps, list) or not steps:
         raise ValueError("用例必须包含非空的 steps 列表")
 
     case = Case.model_validate(data)
-
-    # 校验 action 类型
-    for i, step in enumerate(case.steps, start=1):
-        if step.action not in ALLOWED_ACTIONS:
-            raise ValueError(
-                f"第 {i} 步 action={step.action!r} 非法，允许: {sorted(ALLOWED_ACTIONS)}"
-            )
-
+    _check_actions(case.steps, "")
     return case
+
+
+def load_suite(path: str) -> Suite:
+    """从 YAML 加载一个套件。
+
+    支持两种格式：
+    - 套件：顶层含 `cases`（可选 `setup`），返回 Suite(setup, cases)。
+    - 单用例（旧）：顶层只有 `steps`，返回 setup 为空的单用例套件。
+
+    Raises:
+        FileNotFoundError: 文件不存在。
+        ValueError: 结构非法 / 未知 action。
+    """
+    data = _read_data(path)
+
+    if "cases" in data:
+        setup = [Step.model_validate(s) for s in (data.get("setup") or [])]
+        cases = [Case.model_validate(c) for c in data["cases"]]
+        if not cases:
+            raise ValueError("套件的 cases 不能为空")
+        _check_actions(setup, "setup ")
+        for c in cases:
+            if not c.steps:
+                raise ValueError(f"用例「{c.name}」必须包含非空的 steps 列表")
+            _check_actions(c.steps, f"用例「{c.name}」")
+        return Suite(
+            name=data.get("name", ""),
+            description=data.get("description", ""),
+            setup=setup,
+            cases=cases,
+        )
+
+    # 旧单用例格式：视为 setup 为空的单用例套件
+    case = load_case(path)
+    return Suite(name=case.name, description=case.description, setup=[], cases=[case])

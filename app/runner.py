@@ -1,10 +1,15 @@
-"""统一测试执行器。
+"""统一测试执行器（支持套件与批跑）。
 
 用法：
-    python -m app.runner cases/login_and_query.yaml
+    python -m app.runner cases/manhattan/query_orders.yaml          # 单个文件
+    python -m app.runner cases/manhattan/                            # 目录（批跑所有 yaml）
+    python -m app.runner cases/manhattan/ cases/other/a.yaml         # 多文件/多目录
 
-流程：加载 .env → 读 config.yaml → 建模型 → 加载用例 → 转 task → 装配 agent → 执行。
-不动态生成 py 文件。
+一个 YAML 可以是：
+- 套件（suite）：setup（公共前置，如登录）+ cases（多个用例），登录一次、复用会话依次执行。
+- 单用例（旧格式）：顶层 steps，视为单用例套件。
+
+流程：展开输入 → 对每个套件执行（setup 一次 + 各 case 复用 session）→ 收集结果 → 聚合一份报告。
 """
 
 from __future__ import annotations
@@ -18,15 +23,15 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from .case_loader import load_case
+from .case_loader import load_suite
 from .config import Config, load_config
 from .llm_factory import create_llm
-from .task_builder import build_task
+from .task_builder import build_steps_task
 
 logger = logging.getLogger("app.runner")
 
 
-def _browser_profile() -> Any:
+def _browser_profile(keep_alive: bool = False) -> Any:
     """构造 browser-use 的 BrowserProfile（复用原 uat-login 的配置）。"""
     from browser_use.browser.profile import BrowserProfile
 
@@ -37,6 +42,7 @@ def _browser_profile() -> Any:
             "--disable-extensions-http-throttling",
             "--disable-default-apps",
         ],
+        keep_alive=keep_alive,
     )
 
 
@@ -66,73 +72,171 @@ def _infer_platform(case_path: str) -> str | None:
     仅当路径形如 cases/<alias>/... 时返回别名，否则返回 None。
     """
     parts = Path(case_path).parts
-    if len(parts) >= 2 and parts[-2] != "cases" and "cases" in parts:
+    if len(parts) >= 2 and "cases" in parts:
         idx = list(parts).index("cases")
-        if idx + 1 < len(parts) - 1:
+        if idx + 1 < len(parts):
             return parts[idx + 1]
     return None
 
 
-async def _run(
-    case_path: str, config: Config, platform_alias: str | None, report_enabled: bool
-) -> None:
+def _expand_inputs(paths: list[str]) -> list[str]:
+    """展开输入：目录 -> 其下所有 *.yaml；文件 -> 单个；去重排序。"""
+    result: list[str] = []
+    for p in paths:
+        path = Path(p)
+        if path.is_dir():
+            result.extend(str(f) for f in sorted(path.glob("*.yaml")))
+        elif path.is_file():
+            result.append(str(path))
+        else:
+            logger.warning("忽略不存在的路径: %s", p)
+    return sorted(set(result))
+
+
+def _is_successful(history: Any) -> bool:
+    fn = getattr(history, "is_successful", None)
+    if callable(fn):
+        try:
+            return fn() is True
+        except Exception:
+            return False
+    return False
+
+
+async def _run_suite(
+    suite_path: str, config: Config, platform_alias: str | None
+) -> list[Any]:
+    """执行一个套件：setup 一次 + 各 case 复用同一 session，返回 RunResult 列表。"""
+    from .report.models import RunResult
     from browser_use_ext.integration import create_memory_agent
 
-    # 1. 建模型
     llm = create_llm(config)
-
-    # 2. 加载用例并转 task
-    case = load_case(case_path)
+    suite = load_suite(suite_path)
     login_url = config.platform_login_url(platform_alias) if platform_alias else ""
-    task = build_task(case, login_url)
-    logger.info("用例: %s (%d 步, 平台=%s)", case.name, len(case.steps), platform_alias or "-")
-
-    # 3. 装配 agent（runner 段配置透传给 browser-use Agent）
-    rc = config.runner
-    agent = create_memory_agent(
-        task=task,
-        llm=llm,
-        config=_build_memory_config(config, platform_alias),
-        use_vision=False,
-        browser_profile=_browser_profile(),
-        use_judge=False,
-        llm_timeout=rc.llm_timeout,
-        step_timeout=rc.step_timeout,
-        max_actions_per_step=rc.max_actions_per_step,
-        max_failures=rc.max_failures,
-        viewport_threshold=rc.viewport_threshold,
-        tool_exclude=rc.tool_exclude,
-        profiling_enabled=config.profiling.enabled,
+    logger.info(
+        "套件: %s（setup=%d 步，%d 个用例，平台=%s）",
+        suite.name,
+        len(suite.setup),
+        len(suite.cases),
+        platform_alias or "-",
     )
 
-    # 4. 执行
-    history = await agent.run()
-    print("\n===== Agent Result =====")
-    print(history.final_result())
+    rc = config.runner
+    session = None
+    results: list[Any] = []
 
-    # 5. 打印 token 用量（用于对比"加记忆前/后"的调用 token 差异）
-    _print_token_usage(history)
+    # 组装执行单元：setup（若有）+ 各 case
+    units: list[tuple[Any, Any]] = []
+    if suite.setup:
+        units.append((None, suite.setup))  # None 表示 setup
+    for case in suite.cases:
+        units.append((case, case.steps))
 
-    # 6. 生成 HTML 报告（按开关；报告失败不影响主流程）
-    if report_enabled:
-        _generate_report(history, case, config, platform_alias)
+    try:
+        setup_failed = False
+        for case, steps in units:
+            task = build_steps_task(steps, login_url)
+            agent = create_memory_agent(
+                task=task,
+                llm=llm,
+                config=_build_memory_config(config, platform_alias),
+                use_vision=False,
+                browser_profile=_browser_profile(keep_alive=True),
+                browser_session=session,
+                use_judge=False,
+                llm_timeout=rc.llm_timeout,
+                step_timeout=rc.step_timeout,
+                max_actions_per_step=rc.max_actions_per_step,
+                max_failures=rc.max_failures,
+                viewport_threshold=rc.viewport_threshold,
+                tool_exclude=rc.tool_exclude,
+                profiling_enabled=config.profiling.enabled,
+            )
+            history = await agent.run()
+            session = agent.browser_session  # 保存 session 供复用
+
+            if case is None:  # setup（登录）
+                _print_token_usage(history)
+                if not _is_successful(history):
+                    setup_failed = True
+                    logger.warning("套件 setup(登录) 失败，跳过所有用例")
+                    break
+                continue
+
+            # 业务用例
+            print(f"\n===== 用例结果: {case.name} =====")
+            print(history.final_result())
+            _print_token_usage(history)
+            results.append(
+                RunResult(
+                    platform_alias=platform_alias or "",
+                    case=case,
+                    history=history,
+                )
+            )
+
+        # setup 失败：所有用例标记「未执行」
+        if setup_failed:
+            for case in suite.cases:
+                results.append(
+                    RunResult(
+                        platform_alias=platform_alias or "",
+                        case=case,
+                        history=None,
+                        note="登录失败",
+                    )
+                )
+    finally:
+        if session is not None:
+            try:
+                await session.kill()
+            except Exception:  # noqa: BLE001 —— 收尾失败不影响结果
+                pass
+
+    return results
 
 
-def _generate_report(
-    history: Any, case: Any, config: Config, platform_alias: str | None
+async def _run(
+    paths: list[str],
+    config: Config,
+    report_enabled: bool,
+    platform_override: str | None,
 ) -> None:
-    """生成 HTML 测试报告（异常/中断也尽力生成，失败不影响主流程）。"""
+    suite_paths = _expand_inputs(paths)
+    if not suite_paths:
+        logger.error("没有可执行的用例文件")
+        return
+
+    all_results: list[Any] = []
+    for suite_path in suite_paths:
+        platform_alias = platform_override or _infer_platform(suite_path)
+        if platform_alias and not config.platform(platform_alias):
+            logger.warning(
+                "平台 %r 未在 config.yaml 的 platforms 中注册，登录 URL 将为空",
+                platform_alias,
+            )
+        try:
+            all_results.extend(await _run_suite(suite_path, config, platform_alias))
+        except Exception as e:  # noqa: BLE001 —— 单个套件失败不影响其余
+            logger.error("套件 %s 执行失败: %s", suite_path, e)
+
+    if report_enabled and all_results:
+        report_name = Path(suite_paths[0]).stem if len(suite_paths) == 1 else "batch"
+        _generate_report(all_results, config, report_name)
+
+
+def _generate_report(results: list[Any], config: Config, report_name: str) -> None:
+    """聚合生成 HTML 测试报告（异常不影响主流程）。"""
     try:
         from .report import generate_report
 
         _, provider = config.llm.active()
         model = provider.model
         report_dir = generate_report(
-            history,
-            case,
+            results,
             config.report,
-            platform_alias=platform_alias or "",
             model=model,
+            report_name=report_name,
         )
         logger.info("测试报告已生成: %s/report.html", report_dir)
     except Exception as e:  # noqa: BLE001 —— 报告失败不影响主流程
@@ -176,7 +280,11 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()  # 加载 .env 中的 API KEY
 
     parser = argparse.ArgumentParser(description="统一 Web 测试执行器")
-    parser.add_argument("case", help="测试用例 YAML 路径")
+    parser.add_argument(
+        "case",
+        nargs="+",
+        help="测试用例 YAML 路径或目录（可多个，目录批跑其下所有 yaml）",
+    )
     parser.add_argument(
         "--config",
         default=None,
@@ -185,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--platform",
         default=None,
-        help="平台别名（缺省时从用例路径 cases/<platform>/... 推断）",
+        help="平台别名（覆盖所有用例的平台推断）",
     )
     parser.add_argument(
         "--report",
@@ -209,16 +317,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     config = load_config(args.config)
-
-    # 平台解析：显式 --platform 优先，否则从用例路径推断
-    platform_alias = args.platform or _infer_platform(args.case)
-    if platform_alias and not config.platform(platform_alias):
-        logger.warning(
-            "平台 %r 未在 config.yaml 的 platforms 中注册，登录 URL 将为空",
-            platform_alias,
-        )
-
-    asyncio.run(_run(args.case, config, platform_alias, args.report))
+    asyncio.run(_run(args.case, config, args.report, args.platform))
     return 0
 
 

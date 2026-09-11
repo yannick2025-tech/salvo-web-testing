@@ -1,0 +1,64 @@
+name: manhattan 冒烟测试
+description: 登录一次后依次执行充电订单查询与站点列表查询
+setup:
+  # --- 登录（只执行一次） ---
+  - action: goto
+    target: 登录页
+  - action: input
+    target: 请输入您的账号
+    params: { value: "${TEST_ACCOUNT}" }
+  - action: input
+    target: 请输入您的密码
+    params: { value: "${TEST_PASSWORD}" }
+  - action: click
+    target: 登录按钮
+    locator: { id: login }
+  - action: verify
+    target: 登录成功
+    params: { expect: "页面跳转到后台/工作台/首页，不再停留在登录页" }
+
+cases:
+  # --- 用例1：充电订单查询 ---
+  - name: 充电订单查询
+    description: 查询充电订单（单据时间=订单创建时间、过去10天不含今天）
+    steps:
+      - action: click
+        target: 订单管理
+      - action: click
+        target: 充电订单管理
+      - action: select_option
+        target: 单据时间
+        params: { option: "订单创建时间" }
+      - action: verify
+        target: 日期范围
+        params:
+          expect: "开始时间与结束时间为『过去10天不含今天』的窗口；系统已自动设好，若已正确则直接使用、勿改动、勿点开日历或重新输入"
+      - action: click
+        target: 查询
+      - action: conclude
+        params:
+          text: "用一句话输出本用例是否成功：充电订单管理是否成功（单据时间=订单创建时间、日期=过去10天不含今天、订单列表已加载）。"
+
+  # --- 用例2：站点列表查询 ---
+  - name: 站点列表查询
+    description: 查询站点列表（南京：江苏未勾选、南京已勾选）
+    steps:
+      - action: click
+        target: 电站管理
+      - action: click
+        target: 站点列表
+      - action: click
+        target: 城市名称
+      - action: hover
+        target: 江苏省
+        params: { note: "不要点击它的勾选框，只触发右侧二级面板展开" }
+      - action: check
+        target: 南京市
+      - action: check
+        target: 江苏省
+        params: { negative: true }
+      - action: click
+        target: 查询
+      - action: conclude
+        params:
+          text: "用一句话输出本用例是否成功：站点列表是否成功（江苏未勾选、南京已勾选、已加载南京市站点列表）。"

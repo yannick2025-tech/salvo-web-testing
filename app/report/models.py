@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 
 class StepStatus(str, Enum):
@@ -101,3 +101,18 @@ class Report:
 
     meta: ReportMeta = field(default_factory=ReportMeta)
     platforms: list[PlatformBlock] = field(default_factory=list)
+
+
+@dataclass
+class RunResult:
+    """一次套件执行中，单个用例的执行结果（runner 产出，report 消费）。
+
+    case 为 app.case_loader.Case（含 name/description/steps）；history 为
+    browser-use 的 AgentHistoryList，未执行时为 None（此时用 note 说明，如「登录失败」）。
+    """
+
+    platform_alias: str = ""
+    case: Any = None
+    history: Any = None
+    note: str = ""
+

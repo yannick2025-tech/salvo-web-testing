@@ -1,10 +1,11 @@
-"""generate_report 集成测试：伪造 history + 用例，产出 HTML + 截图目录。"""
+"""generate_report 集成测试：伪造 history + 用例，产出聚合 HTML + 截图目录。"""
 
 import base64
 from pathlib import Path
 from types import SimpleNamespace
 
 from app.report import generate_report
+from app.report.models import RunResult
 
 
 class _FakeAction:
@@ -117,10 +118,9 @@ def test_generate_report_produces_html_and_screenshots(tmp_path):
         ]
     )
     config = SimpleNamespace(output_dir=str(tmp_path), detail=False)
+    results = [RunResult(platform_alias="manhattan", case=_case(), history=history)]
 
-    report_dir = generate_report(
-        history, _case(), config, platform_alias="manhattan", model="qwen3.7-max"
-    )
+    report_dir = generate_report(results, config, model="qwen3.7-max")
 
     p = Path(report_dir)
     assert (p / "report.html").exists()
@@ -140,7 +140,35 @@ def test_generate_report_produces_html_and_screenshots(tmp_path):
 def test_generate_report_detail_mode_contains_thinking(tmp_path):
     history = _FakeHistory([_item("go_to_url", {"url": "u"}, thinking="思考中")])
     config = SimpleNamespace(output_dir=str(tmp_path), detail=True)
+    results = [RunResult(platform_alias="manhattan", case=_case(), history=history)]
 
-    report_dir = generate_report(history, _case(), config)
+    report_dir = generate_report(results, config)
     content = (Path(report_dir) / "report.html").read_text(encoding="utf-8")
     assert "思考中" in content  # 详细模式展示 thinking
+
+
+def test_generate_report_aggregates_multiple_cases(tmp_path):
+    """两个用例聚合到一份报告：元信息 total=2、按平台分块、两行用例。"""
+    h1 = _FakeHistory(
+        [_item("click_element", {"index": 1}, interacted_text="登录按钮")],
+        final="用例1成功",
+    )
+    h2 = _FakeHistory(
+        [_item("click_element", {"index": 2}, interacted_text="查询")],
+        final="用例2失败",
+        success=False,
+    )
+    config = SimpleNamespace(output_dir=str(tmp_path), detail=False)
+    results = [
+        RunResult(platform_alias="manhattan", case=_case("用例A"), history=h1),
+        RunResult(platform_alias="manhattan", case=_case("用例B"), history=h2),
+    ]
+
+    report_dir = generate_report(results, config, report_name="套件")
+
+    content = (Path(report_dir) / "report.html").read_text(encoding="utf-8")
+    assert "用例A" in content
+    assert "用例B" in content
+    assert "总用例" in content
+    assert "2" in content  # 总用例数
+    assert content.count('class="case"') >= 2  # 两行用例

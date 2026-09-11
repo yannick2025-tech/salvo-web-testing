@@ -444,6 +444,7 @@ def create_memory_agent(
     profiling_enabled: bool = False,
     viewport_threshold: Optional[int] = None,
     tool_exclude: Optional[list[str]] = None,
+    browser_session: Any = None,
     **kwargs,
 ) -> Any:
     """
@@ -556,6 +557,10 @@ def create_memory_agent(
 
     if system_message:
         agent_kwargs["extend_system_message"] = system_message
+
+    # 复用已有浏览器会话（套件批跑：登录一次后，后续用例复用同一 session）
+    if browser_session is not None:
+        agent_kwargs["browser_session"] = browser_session
 
     # 合并用户参数（覆盖默认值）
     for key, value in kwargs.items():
