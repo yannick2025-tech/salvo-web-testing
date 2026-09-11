@@ -27,3 +27,7 @@ env/
 
 # 运行时产物
 *.log
+reports/
+
+
+

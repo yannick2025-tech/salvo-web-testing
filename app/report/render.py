@@ -30,9 +30,9 @@ _CSS = """
 :root { --bg:#fbfaf7; --panel:#fffdfa; --text:#141414; --muted:#8a857a;
   --line:#e6e1d6; --accent:#0a5cff; --pass:#0f8a4d; --fail:#d22730; --skip:#a8a093; }
 * { box-sizing:border-box; margin:0; padding:0; }
-body { background:var(--bg); color:var(--text); font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑","Source Han Sans SC","Noto Sans CJK SC",sans-serif;
   padding-bottom:72px; }
-.serif { font-family:Georgia,"Songti SC","Noto Serif SC",serif; }
+.serif { font-family:Georgia,"Songti SC","STSongti-SC-Regular","Hiragino Mincho ProN","Source Han Serif SC","Noto Serif CJK SC","STSong","SimSun","宋体",serif; }
 .wrap { max-width:1200px; margin:0 auto; padding:0 32px; }
 
 .top { padding:56px 0 0; border-bottom:2px solid var(--text); }

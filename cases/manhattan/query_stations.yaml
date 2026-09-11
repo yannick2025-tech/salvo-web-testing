@@ -1,0 +1,41 @@
+name: 站点列表查询
+description: 登录后查询站点列表（南京：江苏未勾选、南京已勾选）
+steps:
+  # --- 登录 ---
+  - action: goto
+    target: 登录页
+  - action: input
+    target: 请输入您的账号
+    params: { value: "${TEST_ACCOUNT}" }
+  - action: input
+    target: 请输入您的密码
+    params: { value: "${TEST_PASSWORD}" }
+  - action: click
+    target: 登录按钮
+    locator: { id: login }
+  - action: verify
+    target: 登录成功
+    params: { expect: "页面跳转到后台/工作台/首页，不再停留在登录页" }
+
+  # --- 站点列表 ---
+  - action: click
+    target: 电站管理
+  - action: click
+    target: 站点列表
+  - action: click
+    target: 城市名称
+  - action: hover
+    target: 江苏省
+    params: { note: "不要点击它的勾选框，只触发右侧二级面板展开" }
+  - action: check
+    target: 南京市
+  - action: check
+    target: 江苏省
+    params: { negative: true }
+  - action: click
+    target: 查询
+
+  # --- 结论 ---
+  - action: conclude
+    params:
+      text: "用一句话输出本用例是否成功：站点列表是否成功（江苏未勾选、南京已勾选、已加载南京市站点列表）。"
