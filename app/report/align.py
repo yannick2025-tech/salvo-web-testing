@@ -285,6 +285,23 @@ def _loose_match(text: str, target: str, extra_texts: list[str]) -> bool:
     return False
 
 
+def _text_match_fallback(
+    ss: ReportSubStep, target: str, extra_texts: list[str]
+) -> bool:
+    """元素文本匹配 → 失败时用 LLM 的 thinking / next_goal / evaluation 宽松匹配。
+
+    解决「元素文本与 target 不完全一致但 LLM 意图里包含 target」的场景
+    （如 element_text="确定" 而 case 写"查询"，但 LLM thinking="点击查询按钮
+    查看订单"）。三个字段都试，合并去空。
+    """
+    if _match_texts(ss, target, extra_texts):
+        return True
+    intent = " ".join(s for s in (ss.thinking, ss.next_goal, ss.evaluation) if s)
+    if intent.strip():
+        return _loose_match(intent, target, extra_texts)
+    return False
+
+
 def _matches(ss: ReportSubStep, action: str, target: str, extra_texts: list[str]) -> bool:
     """判断子步骤是否属于某个用例步骤。"""
     cat = action_category(ss.action_names[0]) if ss.action_names else ""
@@ -293,10 +310,10 @@ def _matches(ss: ReportSubStep, action: str, target: str, extra_texts: list[str]
     if action == "goto" and cat == "goto":
         return True
 
-    # input / hover：类别匹配，有文本时用文本区分（避免连续同类别步骤误吞）
+    # input / hover：类别匹配，有文本时用文本（精确+宽松）区分
     if action in ("input", "hover") and cat == action:
         if ss.target_text:
-            return _match_texts(ss, target, extra_texts)
+            return _text_match_fallback(ss, target, extra_texts)
         return True
 
     # click 家族：click / select_option / check 都由 click 构成，需文本辅助。
@@ -307,7 +324,7 @@ def _matches(ss: ReportSubStep, action: str, target: str, extra_texts: list[str]
         "select_option",
         "check",
     ):
-        return _match_texts(ss, target, extra_texts)
+        return _text_match_fallback(ss, target, extra_texts)
 
     # verify：其 LLM 子步骤通常是 done（conclude 类别），直接按类别匹配；
     # 非 done 时退回 next_goal/evaluation 宽松关键词匹配。

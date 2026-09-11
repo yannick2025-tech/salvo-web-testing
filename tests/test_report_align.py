@@ -203,3 +203,15 @@ def test_align_keyword_overlap_lands_on_step():
     steps, unaligned = align(subs, case)
     assert unaligned == []
     assert len(steps[0].substeps) == 1
+
+
+def test_align_falls_back_to_llm_intent_text():
+    """元素文本不匹配但 LLM next_goal 含 target（如按钮文案"确定"但意图"点击查询"）应归到对应步骤。"""
+    case = [_case_step("click", "查询")]
+    # 元素文本"确定"与"查询"无文本重叠，但 next_goal 含"查询"
+    ss = _ss(["click_element"], target_text="确定")
+    ss.next_goal = "点击查询按钮查看充电订单"
+    steps, unaligned = align([ss], case)
+    assert unaligned == []
+    assert len(steps[0].substeps) == 1
+    assert steps[0].substeps[0].target_text == "确定"
