@@ -44,15 +44,44 @@ def action_category(action_name: str) -> str:
     return _ACTION_CATEGORY.get(action_name, action_name)
 
 
+# 辅助动作：scroll / wait / 读文件 等不是用例语义步骤的 LLM 操作。
+# 对齐时归到当前正在进行的用例步骤（不归 unaligned），且不参与 judge。
+_AUX_ACTIONS = frozenset({
+    "scroll", "scroll_down", "scroll_up", "wait",
+    "send_keys", "press_key", "read_file", "write_file",
+    "extract_content", "search_page", "find_text",
+})
+
+
+def is_aux_substep(ss: ReportSubStep) -> bool:
+    """判断子步骤是否为辅助动作（不参与用例步骤成功/失败判定）。"""
+    if not ss.action_names:
+        return False
+    n = ss.action_names[0]
+    return n in _AUX_ACTIONS or n.startswith("scroll") or n.startswith("wait")
+
+
 def _text_from_element(el: Any) -> str:
-    """从 DOMInteractedElement 提取可读文本。"""
+    """从 DOMInteractedElement 提取可读文本。
+
+    优先 ax_name（可访问名称，最可靠），其次 attributes 里的常见文本字段，
+    最后 node_value（text node 的内容）。如果全部为空，返回 ""，
+    由 align 的空目标文本兜底分支处理。
+    """
     if el is None:
         return ""
     ax_name = getattr(el, "ax_name", "") or ""
     if ax_name:
         return str(ax_name).strip()
     attrs = getattr(el, "attributes", None) or {}
-    for key in ("value", "aria-label", "title", "placeholder", "alt"):
+    # 扩展候选：覆盖 browser-use / 各种 UI 框架（Element UI、Ant Design 等）
+    # 把 text / innerText / aria-label / placeholder / title / alt / value /
+    # data-text / data-label / label / name 都尝试一遍。
+    for key in (
+        "text", "innerText", "textContent",
+        "aria-label", "title", "placeholder", "alt", "value",
+        "data-text", "data-label", "label", "name",
+    ):
         v = attrs.get(key)
         if v:
             return str(v).strip()
@@ -187,28 +216,57 @@ def extract_substeps(history: Any) -> list[ReportSubStep]:
 def _match_texts(ss: ReportSubStep, target: str, extra_texts: list[str]) -> bool:
     """判断子步骤与用例步骤的文本是否相关。
 
-    仅允许「精确相等」或「元素文本是 target 的子串」两种方向；不允许
-    「target 是元素文本的真子串」，否则父菜单（如「订单管理」）会误吞
-    子菜单（如「充电订单管理」）。
+    接受以下任一情况（避免父菜单「订单管理」误吞子菜单「充电订单管理」）：
+    - 精确相等
+    - 元素文本是 target 的子串（ss 在 c 里）—— target 是元素文本的更具体形式
+    - target 是元素文本的前缀（ss 以 c 开头）—— target 是元素文本的简化/截断
+      （如「查询」→「查询按钮」接受；「订单管理」→「充电订单管理」因不以
+      「订单管理」开头而拒绝）
+    - 拆词后有共同关键词（长度 >= 2）—— 处理「城市名称」vs「请选择城市」
+      这类语义相同但文本不同的情况
+
+    父菜单后缀排除：c 是 ss 的真后缀但不是前缀（如「订单管理」是
+    「充电订单管理」的后缀），直接跳过该 c，避免关键词重叠误判。
     """
     for c in [target] + list(extra_texts):
         if not c:
             continue
         c = str(c).strip()
-        if not c:
+        if not c or not ss.target_text:
+            continue
+        # 父菜单后缀排除：c 是 ss 的后缀但不是前缀 → 父菜单误吞，跳过
+        if ss.target_text.endswith(c) and not ss.target_text.startswith(c):
             continue
         if c == ss.target_text:
             return True
-        if ss.target_text and ss.target_text in c:
+        if ss.target_text in c:
+            return True
+        if ss.target_text.startswith(c):
+            return True
+        # 关键词重叠：双方拆词（含 2-gram）后有共同词
+        c_set = set(p for p in _fragments(c) if len(p) >= 2)
+        ss_set = set(p for p in _fragments(ss.target_text) if len(p) >= 2)
+        if c_set and ss_set and (c_set & ss_set):
             return True
     return False
 
 
 def _fragments(text: str) -> list[str]:
-    """把句子按常见分隔符拆成关键词片段，用于宽松匹配。"""
+    """把句子按常见分隔符拆成关键词片段，并对中文连写片段补 2-gram 拆字。
+
+    例：「城市名称」→ ["城市名称", "城市", "市名", "名称"]，
+    与「请选择城市」→ ["请选择城市", "请选", "选择", "择城", "城市"]
+    共享 "城市"，用于关键词重叠匹配。
+    """
     import re
 
-    return [p for p in re.split(r"[/、，,。；;\s]+", text) if p]
+    base = [p for p in re.split(r"[/、，,。；;\s]+", text) if p]
+    extra: list[str] = []
+    for seg in base:
+        if len(seg) >= 2:
+            for i in range(len(seg) - 1):
+                extra.append(seg[i : i + 2])
+    return base + extra
 
 
 def _loose_match(text: str, target: str, extra_texts: list[str]) -> bool:
@@ -241,13 +299,15 @@ def _matches(ss: ReportSubStep, action: str, target: str, extra_texts: list[str]
             return _match_texts(ss, target, extra_texts)
         return True
 
-    # click 家族：click / select_option / check 都由 click 构成，需文本辅助
+    # click 家族：click / select_option / check 都由 click 构成，需文本辅助。
+    # 空目标文本不在此兜底（由 align 的"空文本主操作归当前+推进"处理，
+    # 避免所有空文本 click 全归第一步）。
     if action in ("click", "select_option", "check") and cat in (
         "click",
         "select_option",
         "check",
     ):
-        return _match_texts(ss, target, extra_texts) or not ss.target_text
+        return _match_texts(ss, target, extra_texts)
 
     # verify：其 LLM 子步骤通常是 done（conclude 类别），直接按类别匹配；
     # 非 done 时退回 next_goal/evaluation 宽松关键词匹配。
@@ -285,11 +345,15 @@ def align(
 
     unaligned: list[ReportSubStep] = []
     case_idx = 0
+    _MAIN_CATS = ("click", "input", "hover", "select_option", "check", "goto")
     for ss in substeps:
         if case_idx >= len(steps):
             unaligned.append(ss)
             continue
+        cat = action_category(ss.action_names[0]) if ss.action_names else ""
         a, t, extra = meta[case_idx]
+
+        # 1) 尝试匹配当前 / 下一步 / 辅助 / 空文本主操作，否则未归类
         if _matches(ss, a, t, extra):
             steps[case_idx].substeps.append(ss)
         elif case_idx + 1 < len(steps):
@@ -297,8 +361,27 @@ def align(
             if _matches(ss, na, nt, nextra):
                 case_idx += 1
                 steps[case_idx].substeps.append(ss)
+            elif is_aux_substep(ss):
+                # 辅助动作（scroll/wait 等）归到当前正在进行的用例步骤，不推进
+                steps[case_idx].substeps.append(ss)
+                continue
+            elif not ss.target_text and cat in _MAIN_CATS:
+                # 空目标文本的主操作：按顺序归当前（推进由下方统一处理）
+                steps[case_idx].substeps.append(ss)
             else:
                 unaligned.append(ss)
+                continue
+        elif is_aux_substep(ss):
+            steps[case_idx].substeps.append(ss)
+            continue
+        elif not ss.target_text and cat in _MAIN_CATS:
+            steps[case_idx].substeps.append(ss)
         else:
             unaligned.append(ss)
+            continue
+
+        # 2) 推进：一个用例步骤通常对应一个主动作；select_option 例外
+        #    （它由「点击展开 + 点击选项」多个子步骤构成），匹配后不推进。
+        if meta[case_idx][0] != "select_option":
+            case_idx += 1
     return steps, unaligned

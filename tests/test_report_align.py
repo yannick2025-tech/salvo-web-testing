@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 from app.report.align import (
+    _match_texts,
     _text_from_element,
     action_category,
     align,
@@ -75,7 +76,130 @@ def test_align_verify_matches_next_goal():
 
 def test_align_unaligned_fallback():
     case = [_case_step("click", "查询")]
-    subs = [_ss(["scroll_down"])]  # 未知动作，无法匹配
+    subs = [_ss(["totally_unknown_xyz"])]  # 真正未知动作，匹配失败
     steps, unaligned = align(subs, case)
     assert steps[0].substeps == []
     assert len(unaligned) == 1
+
+
+def test_align_aux_action_attached_to_current_step():
+    """scroll / wait 等辅助动作归到当前正在执行的用例步骤，不归 unaligned。"""
+    case = [_case_step("click", "查询")]
+    subs = [
+        _ss(["scroll"]),  # 辅助动作（不归 unaligned）
+        _ss(["click_element"], target_text="查询"),
+    ]
+    steps, unaligned = align(subs, case)
+    assert len(steps[0].substeps) == 2  # scroll + click 都归到当前步骤
+    assert unaligned == []
+
+
+def test_align_aux_action_attached_when_no_current_match():
+    """辅助动作在当前/下一步都匹配失败时，也归到当前步骤。"""
+    case = [_case_step("click", "查询")]
+    subs = [_ss(["scroll_down"])]  # 辅助：既不匹配当前也不匹配下一步
+    steps, unaligned = align(subs, case)
+    assert len(steps[0].substeps) == 1
+    assert unaligned == []
+
+
+def test_align_empty_target_text_fallback():
+    """空目标文本的主操作：归当前步骤并推进（避免全归第一步 + unaligned 堆积）。"""
+    case = [
+        _case_step("click", "订单管理"),
+        _case_step("click", "充电订单管理"),
+        _case_step("click", "查询"),
+    ]
+    subs = [
+        _ss(["click_element"]),  # 空 target_text 的 click
+        _ss(["click_element"]),  # 空 target_text 的 click
+        _ss(["click_element"]),  # 空 target_text 的 click
+    ]
+    steps, unaligned = align(subs, case)
+    # 三个空 text click 各归一步（一个推进一步），不再 unaligned
+    assert unaligned == []
+    assert len(steps[0].substeps) == 1
+    assert len(steps[1].substeps) == 1
+    assert len(steps[2].substeps) == 1
+
+
+def test_align_exact_match_advances_pointer():
+    """精确匹配后推进 case_idx，使后续空文本子步骤落到正确的下一步。"""
+    case = [
+        _case_step("click", "订单管理"),
+        _case_step("click", "充电订单管理"),
+        _case_step("click", "查询"),
+    ]
+    subs = [
+        _ss(["click_element"], target_text="订单管理"),      # 精确匹配 #01
+        _ss(["click_element"]),                              # 空文本 → #02
+        _ss(["click_element"]),                              # 空文本 → #03
+    ]
+    steps, unaligned = align(subs, case)
+    assert unaligned == []
+    assert steps[0].substeps[0].target_text == "订单管理"
+    assert steps[1].substeps[0].target_text == ""
+    assert steps[2].substeps[0].target_text == ""
+
+
+def test_align_empty_target_text_advance_pointer():
+    """空目标文本归当前后会推进 case_idx，让后续空 text 子步骤归到下一步。"""
+    case = [
+        _case_step("click", "充电订单管理"),
+        _case_step("click", "充电订单详情"),
+    ]
+    subs = [
+        _ss(["click_element"]),
+        _ss(["click_element"], target_text="充电订单详情"),  # 有文本：应匹配 #02
+    ]
+    steps, unaligned = align(subs, case)
+    # 第 1 个空 text click 归 #00 并推进到 #01；
+    # 第 2 个有文本的 click 匹配 #01。
+    assert unaligned == []
+    assert len(steps[0].substeps) == 1
+    assert len(steps[1].substeps) == 1
+    assert steps[0].substeps[0].target_text == ""
+    assert steps[1].substeps[0].target_text == "充电订单详情"
+
+
+def test_match_texts_startswith_accepts_extension():
+    """target 是元素文本的前缀（简化词）应匹配：如「查询」→「查询按钮」。"""
+    ss = _ss(["click_element"], target_text="查询按钮")
+    assert _match_texts(ss, "查询", []) is True
+
+
+def test_match_texts_startswith_rejects_parent_menu():
+    """target 是元素文本的后缀（父菜单）应拒绝：如「订单管理」≠「充电订单管理」。"""
+    ss = _ss(["click_element"], target_text="充电订单管理")
+    assert _match_texts(ss, "订单管理", []) is False
+
+
+def test_match_texts_keyword_overlap_accepts():
+    """拆词后有共同关键词（长度>=2）应匹配：如「城市名称」vs「请选择城市」。"""
+    ss = _ss(["click_element"], target_text="请选择城市")
+    assert _match_texts(ss, "城市名称", []) is True
+
+
+def test_match_texts_keyword_overlap_rejects_no_common():
+    """无共同关键词应拒绝。"""
+    ss = _ss(["click_element"], target_text="其他内容")
+    assert _match_texts(ss, "城市名称", []) is False
+
+
+def test_align_extension_text_lands_on_step():
+    """element_text 是 target 扩展（如「查询按钮」vs「查询」）应归到对应 case 步骤。"""
+    case = [_case_step("click", "查询")]
+    subs = [_ss(["click_element"], target_text="查询按钮")]
+    steps, unaligned = align(subs, case)
+    assert unaligned == []
+    assert len(steps[0].substeps) == 1
+    assert steps[0].substeps[0].target_text == "查询按钮"
+
+
+def test_align_keyword_overlap_lands_on_step():
+    """element_text 与 target 关键词重叠应归到对应 case 步骤。"""
+    case = [_case_step("click", "城市名称")]
+    subs = [_ss(["click_element"], target_text="请选择城市")]
+    steps, unaligned = align(subs, case)
+    assert unaligned == []
+    assert len(steps[0].substeps) == 1

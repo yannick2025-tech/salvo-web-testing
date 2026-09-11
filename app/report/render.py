@@ -66,9 +66,9 @@ h1 { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:44px; font
 .case-head { display:flex; align-items:center; gap:16px; padding:20px 4px; border:none;
   background:none; text-align:left; font-size:16px; color:var(--text); width:100%; cursor:pointer; }
 .badge { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:2px 0; }
-.badge.pass { color:var(--pass); }
-.badge.fail { color:var(--fail); }
-.badge.skip { color:var(--skip); }
+.badge.success { color:var(--pass); }
+.badge.failed { color:var(--fail); }
+.badge.skipped { color:var(--skip); }
 .cname { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:19px; font-weight:600; flex:1; }
 .cmeta { color:var(--muted); font-size:12.5px; font-variant-numeric:tabular-nums; }
 .chev { width:18px; height:18px; color:var(--muted); transition:transform .25s; flex:none; }
@@ -82,9 +82,9 @@ h1 { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:44px; font
 .idx { font-weight:700; color:var(--muted); font-size:12px; }
 .stitle { font-weight:600; flex:1; }
 .dot { width:8px; height:8px; border-radius:50%; flex:none; }
-.dot.pass { background:var(--pass); }
-.dot.fail { background:var(--fail); }
-.dot.skip { background:var(--skip); }
+.dot.success { background:var(--pass); }
+.dot.failed { background:var(--fail); }
+.dot.skipped { background:var(--skip); }
 .substeps { padding:6px 18px 14px; }
 .substep { display:flex; gap:18px; padding:11px 0; border-top:1px solid var(--line); }
 .substep:first-child { border-top:none; }
@@ -92,11 +92,22 @@ h1 { font-family:Georgia,"Songti SC","Noto Serif SC",serif; font-size:44px; font
 .act { font-weight:600; }
 .m2 { color:var(--muted); font-size:12px; margin-top:2px; word-break:break-all; }
 .err { color:var(--fail); font-size:12px; margin-top:4px; }
-.shot { width:200px; height:112px; flex:none; object-fit:cover; background:#1c1c1c; border:none; }
+.shot { width:200px; height:112px; flex:none; object-fit:cover; background:#1c1c1c; border:none; cursor:zoom-in; }
 .no-shot { width:200px; height:112px; flex:none; display:flex; align-items:center; justify-content:center;
   font-size:12px; color:var(--muted); background:#f0ede4; }
 .unaligned { border-color:#d8d0c2; }
 .ual-head { color:var(--muted); font-size:13px; font-weight:600; padding:12px 4px; }
+
+/* 点击图片放大（lightbox） */
+.lightbox { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+  animation:lb-fade .15s ease; }
+.lightbox-bg { position:absolute; inset:0; background:rgba(0,0,0,.85); cursor:zoom-out; }
+.lightbox-img { position:relative; max-width:92vw; max-height:92vh; object-fit:contain;
+  box-shadow:0 12px 48px rgba(0,0,0,.6); }
+.lightbox-close { position:absolute; top:16px; right:24px; color:#fff; font-size:32px; cursor:pointer;
+  line-height:1; font-family:Georgia,"Songti SC",serif; padding:8px 14px; user-select:none; }
+.lightbox-close:hover { color:#ddd; }
+@keyframes lb-fade { from { opacity:0; } to { opacity:1; } }
 """
 
 
@@ -269,13 +280,28 @@ def render_html(report: Report, detail: bool = False) -> str:
         parts.append(_render_platform(platform, detail))
 
     parts.append("</div>")
-    parts.append(
-        "<script>"
+    script_js = (
         "document.querySelectorAll('.case-head').forEach(function(h){"
         "h.addEventListener('click',function(){var c=h.parentElement;"
         "var o=c.classList.toggle('open');h.setAttribute('aria-expanded',o);});});"
-        "</script>"
+        # 点击 .shot 放大（lightbox）
+        "document.querySelectorAll('.shot').forEach(function(s){"
+        "s.addEventListener('click',function(){"
+        "var lb=document.createElement('div');lb.className='lightbox';"
+        "var bg=document.createElement('div');bg.className='lightbox-bg';"
+        "var img=document.createElement('img');img.className='lightbox-img';img.src=s.src;"
+        "var cb=document.createElement('div');cb.className='lightbox-close';cb.textContent='×';"
+        "lb.appendChild(bg);lb.appendChild(img);lb.appendChild(cb);"
+        "document.body.appendChild(lb);"
+        "function close(){if(lb.parentNode)document.body.removeChild(lb);"
+        "document.removeEventListener('keydown',onEsc);}"
+        "function onEsc(e){if(e.key==='Escape')close();}"
+        "bg.addEventListener('click',close);"
+        "cb.addEventListener('click',close);"
+        "document.addEventListener('keydown',onEsc);"
+        "});});"
     )
+    parts.append("<script>" + script_js + "</script>")
     parts.append("</body>")
     parts.append("</html>")
     return "\n".join(parts)
