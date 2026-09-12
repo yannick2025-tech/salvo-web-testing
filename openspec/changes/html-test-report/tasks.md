@@ -40,4 +40,4 @@
 - [x] 8.2 为判定模块编写单元测试（`tests/test_report_judge.py`）：final-state-wins、提前终止未执行
 - [x] 8.3 为截图落盘策略编写单元测试（`tests/test_report_screenshots.py`）：首末截图保留规则
 - [x] 8.4 为 `generate_report` 编写集成测试：给定伪造 history + 用例，产出 report.html + screenshots/，且相对路径可解析
-- [ ] 8.5 跑一次现有用例（`cases/manhattan/login_and_query.yaml`），人工核对报告按用例步骤分节、状态正确、截图可显示
+- [x] 8.5 跑一次现有用例（后续拆分为 `cases/manhattan/smoke.yaml`），人工核对报告按用例步骤分节、状态正确、截图可显示
