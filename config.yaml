@@ -23,6 +23,8 @@ platforms:
   manhattan:
     host: ${MANHATTAN_HOST}
     login_url: ${MANHATTAN_LOGIN_URL}
+    account: ${MANHATTAN_ACCOUNT}
+    password: ${MANHATTAN_PASSWORD}
 
 # 元素记忆（与 browser_use_ext 的 ElementMemoryConfig 同结构）
 element_memory:

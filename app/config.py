@@ -19,19 +19,27 @@ from pydantic import BaseModel, Field
 _ENV_PATTERN = re.compile(r"\$\{(\w+)\}")
 
 
-def expand_env_vars(obj: Any) -> Any:
+def expand_env_vars(obj: Any, extra: Optional[dict[str, str]] = None) -> Any:
     """递归地把字符串中的 ${VAR_NAME} 替换为环境变量值。
 
-    未设置的环境变量保留原样（不替换），便于在 .env.example 里给出模板。
+    - 优先从 `extra` 映射取值（用于平台级注入，如 ${ACCOUNT} → 当前平台账号）；
+    - 回退到环境变量 `os.environ`；
+    - 都未设置则保留原样（不替换），便于在 .env.example 里给出模板。
+
     用于 config.yaml 与 cases/*.yaml 中的敏感信息（域名、账号、密码）脱敏：
     文件里写占位符，真实值放本地 .env（已被 .gitignore 排除）。
     """
+    mapping = {**os.environ, **(extra or {})}  # extra 优先覆盖环境变量
+
+    def _sub(m: "re.Match[str]") -> str:
+        return mapping.get(m.group(1), m.group(0))
+
     if isinstance(obj, str):
-        return _ENV_PATTERN.sub(lambda m: os.environ.get(m.group(1), m.group(0)), obj)
+        return _ENV_PATTERN.sub(_sub, obj)
     if isinstance(obj, dict):
-        return {k: expand_env_vars(v) for k, v in obj.items()}
+        return {k: expand_env_vars(v, extra) for k, v in obj.items()}
     if isinstance(obj, list):
-        return [expand_env_vars(v) for v in obj]
+        return [expand_env_vars(v, extra) for v in obj]
     return obj
 
 
@@ -67,6 +75,8 @@ class Platform(BaseModel):
 
     host: str = ""          # 域名（精确匹配，用于记忆分片路由）
     login_url: str = ""     # 该平台的登录 URL（用例 goto 步骤默认注入）
+    account: str = ""       # 该平台的登录账号（用例 ${ACCOUNT} 占位符注入）
+    password: str = ""      # 该平台的登录密码（用例 ${PASSWORD} 占位符注入）
 
 
 class RunnerConfig(BaseModel):

@@ -111,7 +111,12 @@ async def _run_suite(
     from browser_use_ext.integration import create_memory_agent
 
     llm = create_llm(config)
-    suite = load_suite(suite_path)
+    platform = config.platform(platform_alias) if platform_alias else None
+    suite = load_suite(
+        suite_path,
+        account=platform.account if platform else "",
+        password=platform.password if platform else "",
+    )
     login_url = config.platform_login_url(platform_alias) if platform_alias else ""
     logger.info(
         "套件: %s（setup=%d 步，%d 个用例，平台=%s）",

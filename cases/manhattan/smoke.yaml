@@ -6,10 +6,10 @@ setup:
     target: 登录页
   - action: input
     target: 请输入您的账号
-    params: { value: "${TEST_ACCOUNT}" }
+    params: { value: "${ACCOUNT}" }
   - action: input
     target: 请输入您的密码
-    params: { value: "${TEST_PASSWORD}" }
+    params: { value: "${PASSWORD}" }
   - action: click
     target: 登录按钮
     locator: { id: login }

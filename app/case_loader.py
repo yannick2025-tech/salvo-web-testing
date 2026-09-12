@@ -74,8 +74,11 @@ def _check_actions(steps: list[Step], where: str) -> None:
             )
 
 
-def _read_data(path: str) -> dict[str, Any]:
-    """读取 YAML 并展开环境变量占位符，返回顶层映射。"""
+def _read_data(path: str, extra: Optional[dict[str, str]] = None) -> dict[str, Any]:
+    """读取 YAML 并展开环境变量占位符，返回顶层映射。
+
+    extra 为额外的占位符映射（如平台级 ${ACCOUNT}/${PASSWORD}），优先于环境变量。
+    """
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"用例文件不存在: {p}")
@@ -83,10 +86,10 @@ def _read_data(path: str) -> dict[str, Any]:
     with open(p, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
 
-    # 敏感信息脱敏：用例里的 ${VAR} 占位符替换为环境变量值（如账号/密码）。
+    # 敏感信息脱敏：用例里的 ${VAR} 占位符替换为环境变量/extra 值（如账号/密码）。
     from .config import expand_env_vars
 
-    data = expand_env_vars(data)
+    data = expand_env_vars(data, extra)
 
     if not isinstance(data, dict):
         raise ValueError("用例文件顶层必须是映射")
@@ -106,18 +109,25 @@ def load_case(path: str) -> Case:
     return case
 
 
-def load_suite(path: str) -> Suite:
+def load_suite(path: str, account: str = "", password: str = "") -> Suite:
     """从 YAML 加载一个套件。
 
     支持两种格式：
     - 套件：顶层含 `cases`（可选 `setup`），返回 Suite(setup, cases)。
     - 单用例（旧）：顶层只有 `steps`，返回 setup 为空的单用例套件。
 
+    account / password 用于平台级凭据注入：把用例里的 `${ACCOUNT}` /
+    `${PASSWORD}` 占位符替换为传入值（优先级高于环境变量），使不同平台的
+    用例各用各的账号密码。不传时占位符保留原样。
+
     Raises:
         FileNotFoundError: 文件不存在。
         ValueError: 结构非法 / 未知 action。
     """
-    data = _read_data(path)
+    extra: dict[str, str] = {}
+    if account or password:
+        extra = {"ACCOUNT": account, "PASSWORD": password}
+    data = _read_data(path, extra)
 
     if "cases" in data:
         setup = [Step.model_validate(s) for s in (data.get("setup") or [])]
@@ -136,6 +146,10 @@ def load_suite(path: str) -> Suite:
             cases=cases,
         )
 
-    # 旧单用例格式：视为 setup 为空的单用例套件
-    case = load_case(path)
+    # 旧单用例格式：视为 setup 为空的单用例套件（直接用已展开的 data）
+    steps = data.get("steps")
+    if not isinstance(steps, list) or not steps:
+        raise ValueError("用例必须包含非空的 steps 列表")
+    case = Case.model_validate(data)
+    _check_actions(case.steps, "")
     return Suite(name=case.name, description=case.description, setup=[], cases=[case])
