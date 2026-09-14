@@ -55,15 +55,16 @@ def _url_matches(pattern: Optional[str], url: str) -> bool:
 
 
 def _is_range_date_control(sig) -> bool:
-    """判断记忆是否对应"日期范围控件"。"""
+    """判断记忆是否对应"日期范围控件"。
+
+    Element UI 的 daterange 固定使用 `el-range-input` class，且本项目只有 Element UI，
+    故只此一条规则即可——任何 `tag=input + 有 class` 的记忆（如账号/密码/下拉输入）
+    都不应被纳入 auto_apply，否则会把订单的日期窗口误带入其他场景（站点列表等）。
+    """
     if sig is None:
         return False
     classes = " ".join(sig.class_fragments or [])
-    if "el-range-input" in classes:
-        return True
-    if sig.tag == "input" and classes:
-        return True
-    return False
+    return "el-range-input" in classes
 
 
 # 判断当前 DOM 中该控件是否已是目标窗口的 JS（只读，返回现状）
