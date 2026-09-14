@@ -55,6 +55,7 @@
 - **统一配置**：项目级配置在根目录 `config.yaml`（模型 provider、平台注册表、记忆、弹窗看门狗）。
 - **模型加载**：统一走 `app/llm_factory.py` 的 `create_llm()`，新增模型只需在注册表加一项，用例/runner 不得出现复用的 if 判断。
 - **测试用例**：用 YAML 结构化步骤（action/target/locator/params）；locator 可省略，定位优先从记忆取。
+- **日期范围值由用例驱动**：日期范围控件的目标值 MUST 通过 `set_date_range` 步骤声明（`params` 支持固定区间 `start`/`end`，或相对窗口 `days_back`/`include_today`）。`auto_apply` 只负责「用用例声明的目标值 + 记忆里的设值方式」确定性设值，不自行决定日期值；用例未声明日期时不干预。
 - **执行入口**：`python -m app.runner cases/<platform>/<case>.yaml`（`--platform <alias>` 可覆盖平台推断），不动态生成 py 文件。
 
 ### 多平台与用例组

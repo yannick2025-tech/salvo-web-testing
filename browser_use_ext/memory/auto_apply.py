@@ -135,14 +135,22 @@ async def auto_apply_date_ranges(
     browser_session: Any,
     store,
     cfg: ElementMemoryConfig,
+    target_window: Optional[tuple[str, str]] = None,
 ) -> Optional[str]:
     """扫描记忆中的日期范围控件，命中且当前值!=目标窗口则自动设值。
 
-    返回描述做了什么，供日志。无控件/无需设值返回 None。
+    目标窗口由用例声明（`target_window`）驱动，不再由本模块自行计算：
+    - `target_window is None`（用例未声明日期目标）→ 不干预，直接返回 None。
+    - 否则用 `target_window` 作为 (start, end) 目标值设值。
+
+    返回描述做了什么，供日志。无控件/无需设值/无目标返回 None。
     """
     if not cfg.auto_apply_enabled:
         return None
     if browser_session is None:
+        return None
+    # 用例未声明日期目标时不干预，避免误伤任何未声明日期的页面日期控件。
+    if target_window is None:
         return None
 
     memories = list(store.get_all())
@@ -170,7 +178,7 @@ async def auto_apply_date_ranges(
             logger.debug(f"[auto_apply] DOM 无 el-range-input: {state}")
             return None
 
-        start, end = compute_date_window(cfg)
+        start, end = target_window
 
         # 只在前两框当前值不是目标时才设（幂等）
         vals = state.get("vals", []) or []

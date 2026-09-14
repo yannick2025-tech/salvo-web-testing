@@ -62,6 +62,7 @@ ALLOWED_ACTIONS = {
     "check",
     "verify",
     "conclude",
+    "set_date_range",
 }
 
 

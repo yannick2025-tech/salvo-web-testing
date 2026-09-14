@@ -80,6 +80,8 @@ class MemoryIntegration:
         self._menu_path: list[str] = []  # 当前推断的菜单路径
         self._step_memory_hints: list[str] = []  # 当前步的记忆提示
         self._browser_session: Any = None  # 保存 browser_session 引用
+        # 当前用例声明的日期范围目标 (start, end)，由 runner 注入；None 表示不干预。
+        self.date_target: Optional[tuple[str, str]] = None
 
     def _infer_menu_path_from_output(
         self, agent_output: AgentOutput, state: BrowserStateSummary
@@ -446,6 +448,7 @@ def create_memory_agent(
     tool_exclude: Optional[list[str]] = None,
     browser_session: Any = None,
     slim_system_prompt: bool = False,
+    date_target: Optional[tuple[str, str]] = None,
     **kwargs,
 ) -> Any:
     """
@@ -456,6 +459,7 @@ def create_memory_agent(
         llm: LLM 实例
         config_path: 配置文件路径（JSON）；当未传 config 时使用。
         config: 可选，直接传入的 AppConfig 对象（优先于 config_path）。
+        date_target: 当前用例声明的日期范围目标 (start, end)；None 表示不干预日期控件。
         **kwargs: 其他 Agent 参数
 
     Returns:
@@ -470,6 +474,7 @@ def create_memory_agent(
 
     # 2. 创建记忆集成实例
     integration = MemoryIntegration(config)
+    integration.date_target = date_target
     _current_integration = integration
 
     # 3. 构造 Tools（自带全部默认浏览器动作）并注册自定义 Tool: follow_memory
@@ -625,6 +630,7 @@ def create_memory_agent(
                     bs,
                     integration.memory_store,
                     integration.config.element_memory,
+                    target_window=integration.date_target,
                 )
                 if done:
                     logger.info(f"[auto_apply] 已设日期范围: {done}")

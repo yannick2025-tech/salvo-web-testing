@@ -10,6 +10,10 @@ from typing import Optional
 
 from .case_loader import Case, Step
 
+# 复用 auto_apply 的日期窗口计算原语，保证「相对窗口」的解析规则与设值侧一致。
+from browser_use_ext.memory.auto_apply import compute_date_window
+from browser_use_ext.memory.models import ElementMemoryConfig
+
 
 def _fmt_locator(locator: Optional[dict]) -> str:
     """把可选 locator 转成自然语言补充（用于兜底定位提示）。"""
@@ -56,6 +60,16 @@ def _step_text(step: Step) -> str:
         if negative:
             return f"不要勾选『{step.target}』。"
         return f"勾选『{step.target}』。"
+
+    if step.action == "set_date_range":
+        start = p.get("start")
+        end = p.get("end")
+        if start and end:
+            return f"将『{step.target}』日期范围设为 {start} ~ {end}。"
+        db = p.get("days_back", 10)
+        it = bool(p.get("include_today", False))
+        desc = "含今天" if it else "不含今天"
+        return f"将『{step.target}』日期范围设为过去 {db} 天（{desc}）的窗口。"
 
     if step.action == "verify":
         return f"等待并确认：{p.get('expect', step.target)}。"
@@ -104,3 +118,38 @@ def build_task(case: Case, login_url: str) -> str:
         login_url: 当前平台的登录 URL（从平台配置注入，用例中不出现）。
     """
     return build_steps_task(case.steps, login_url)
+
+
+def extract_date_target(
+    steps: list[Step],
+    days_back: int = 10,
+    include_today: bool = False,
+) -> Optional[tuple[str, str]]:
+    """从步骤中提取「日期范围目标」，归一化为 (start, end) 绝对日期。
+
+    只有 `set_date_range` 步骤是日期目标的唯一来源（单一来源，避免启发式歧义）：
+    - 固定区间：`params.start` / `params.end` 字面值（原样返回）。
+    - 相对窗口：`params.days_back` / `params.include_today`，复用
+      `compute_date_window` 立即算成绝对日期（今天在 agent 生命周期内不变）。
+
+    Args:
+        steps: 用例步骤列表。
+        days_back: 相对窗口缺省「往前 N 天」（来自 config.date_range_days_back）。
+        include_today: 相对窗口缺省「是否含今天」。
+
+    Returns:
+        (start, end) 绝对日期元组；无 `set_date_range` 步骤时返回 None。
+    """
+    for step in steps:
+        if step.action != "set_date_range":
+            continue
+        p = step.params or {}
+        start = p.get("start")
+        end = p.get("end")
+        if start and end:
+            return (str(start), str(end))
+        db = int(p.get("days_back", days_back))
+        it = bool(p.get("include_today", include_today))
+        cfg = ElementMemoryConfig(date_range_days_back=db, date_range_include_today=it)
+        return compute_date_window(cfg)
+    return None

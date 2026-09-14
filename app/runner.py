@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 from .case_loader import load_suite
 from .config import Config, load_config
 from .llm_factory import create_llm
-from .task_builder import build_steps_task
+from .task_builder import build_steps_task, extract_date_target
 
 logger = logging.getLogger("app.runner")
 
@@ -142,6 +142,13 @@ async def _run_suite(
         setup_failed = False
         for case, steps in units:
             task = build_steps_task(steps, login_url)
+            # 提取用例声明的日期范围目标（固定区间或相对窗口），驱动 auto_apply 设值。
+            em = config.element_memory or {}
+            date_target = extract_date_target(
+                steps,
+                days_back=int(em.get("date_range_days_back", 10)),
+                include_today=bool(em.get("date_range_include_today", False)),
+            )
             agent = create_memory_agent(
                 task=task,
                 llm=llm,
@@ -158,6 +165,7 @@ async def _run_suite(
                 tool_exclude=rc.tool_exclude,
                 profiling_enabled=config.profiling.enabled,
                 slim_system_prompt=rc.slim_system_prompt,
+                date_target=date_target,
             )
             history = await agent.run()
             session = agent.browser_session  # 保存 session 供复用

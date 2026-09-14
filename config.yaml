@@ -43,6 +43,8 @@ element_memory:
   auto_learn: true
   min_retry_threshold: 2
   auto_apply_enabled: true
+  # 日期范围值由用例步骤声明（set_date_range），不再由全局硬编码。以下两项仅作为
+  # set_date_range 未显式给 days_back/include_today 时的缺省默认值。
   date_range_days_back: 10
   date_range_include_today: false
   # 记忆分片：按「平台(host) + URL path 第一段」拆多 JSON。

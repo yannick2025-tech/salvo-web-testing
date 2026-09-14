@@ -29,6 +29,9 @@ cases:
       - action: select_option
         target: 单据时间
         params: { option: "订单创建时间" }
+      - action: set_date_range
+        target: 日期范围
+        params: { days_back: 10, include_today: false }
       - action: verify
         target: 日期范围
         params:
