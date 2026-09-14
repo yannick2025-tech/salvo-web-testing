@@ -156,6 +156,7 @@ async def _run_suite(
                 viewport_threshold=rc.viewport_threshold,
                 tool_exclude=rc.tool_exclude,
                 profiling_enabled=config.profiling.enabled,
+                slim_system_prompt=rc.slim_system_prompt,
             )
             history = await agent.run()
             session = agent.browser_session  # 保存 session 供复用

@@ -15,16 +15,24 @@
 
 ## 4. C2 system prompt 精简：模板
 
-- [ ] 4.1 编写精简版 system prompt 模板（删除 file_system/planning/browser_vision/examples，保留 output/action/browser 规则）
-- [ ] 4.2 在 `create_memory_agent` 透传 `override_system_message`（受配置开关控制）
-- [ ] 4.3 在 `app/runner.py` 透传开关
+- [x] 4.1 编写精简版 system prompt 模板（删除 file_system/planning/browser_vision/examples，保留 output/action/browser 规则）
+- [x] 4.2 在 `create_memory_agent` 透传 `override_system_message`（受配置开关控制）
+- [x] 4.3 在 `app/runner.py` 透传开关
 
 ## 5. C2 验证
 
-- [ ] 5.1 跑同一用例，用 profiler 核对 system 定义字符数下降、无输出格式错误、成功率保持 100%
+- [x] 5.1 跑同一用例，用 profiler 核对 system 定义字符数下降、无输出格式错误、成功率保持 100%
 
 ## C1 实验结果（2026-09-08）：成功
 
 - tools 定义单次 21,040 → **13,781 chars（-34.5%）**，两次跑稳定，无副作用。
 - 记忆 + auto_apply 生效，日期正确（08-29 ~ 09-07，过去10天不含今天）。
 - 用例2 城市级联存在随机性（第1次 0 条、第2次成功），与工具精简无关（工具精简只排除 search/close 等）。
+
+## C2 实验结果（2026-09-14）：成功
+
+- system 单次实测 **13,060 chars**（profiler 输出），对比默认模板 24,111 → **-45.8%**，与静态预期（13,072）一致（差为 `{max_actions}`→`5` 替换）。
+- 删除 `<file_system>` / `<planning>` / `<browser_vision>` / `<examples>` 四段，保留 output/action/browser 等核心规则。
+- 3 用例 100% 成功（登录 3 步 / 充电订单 6 步 / 站点列表 7 步），无输出格式错误、无 done 截断。
+- 5.1 验证通过：字符数下降 ✅ 无格式错误 ✅ 成功率 100% ✅。
+

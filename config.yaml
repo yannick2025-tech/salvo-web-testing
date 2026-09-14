@@ -77,6 +77,9 @@ runner:
     - read_file
     - find_text
     - close
+  # system prompt 精简（方案C2）：删 file_system/planning/browser_vision/examples
+  # 四段冗余内容（file 类工具已被上面排除，planning/examples/vision 本项目不用）。
+  slim_system_prompt: true
 
 # 计量（profiling）：量化每次 LLM 调用 prompt 各部分占比（纯观测，不影响执行）。
 # 用于定位「token 花在哪」、为 prompt 裁剪提供基线；优化完成后可置 false 关闭。

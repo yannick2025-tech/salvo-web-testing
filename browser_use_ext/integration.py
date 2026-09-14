@@ -445,6 +445,7 @@ def create_memory_agent(
     viewport_threshold: Optional[int] = None,
     tool_exclude: Optional[list[str]] = None,
     browser_session: Any = None,
+    slim_system_prompt: bool = False,
     **kwargs,
 ) -> Any:
     """
@@ -557,6 +558,15 @@ def create_memory_agent(
 
     if system_message:
         agent_kwargs["extend_system_message"] = system_message
+
+    # C2：精简 system prompt（用 override_system_message 整体替换默认模板，
+    # 删 file_system/planning/browser_vision/examples 冗余段）。extend_system_message
+    # 仍会追加在 override 之后，记忆规则不受影响。
+    if slim_system_prompt:
+        from .system_prompt_slim import build_slim_system_prompt
+
+        max_actions = kwargs.get("max_actions_per_step", 5)
+        agent_kwargs["override_system_message"] = build_slim_system_prompt(max_actions)
 
     # 复用已有浏览器会话（套件批跑：登录一次后，后续用例复用同一 session）
     if browser_session is not None:

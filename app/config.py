@@ -102,6 +102,12 @@ class RunnerConfig(BaseModel):
         ],
         description="排除的工具名清单",
     )
+    # system prompt 精简（方案C2）：用 override_system_message 替换默认模板，
+    # 删除 file_system/planning/browser_vision/examples 四段冗余内容。
+    slim_system_prompt: bool = Field(
+        default=False,
+        description="精简 system prompt（删 file_system/planning/browser_vision/examples）",
+    )
 
 
 class ProfilingConfig(BaseModel):
