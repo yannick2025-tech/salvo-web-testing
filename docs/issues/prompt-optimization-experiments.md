@@ -40,6 +40,7 @@
 
 ## 当前基线
 
-- 已生效优化：`viewport_threshold=200`（config.yaml）
-- 效果：total_tokens 257,662 → 241,697（-6.2%），成功率 2/2，invocations 18 不增
-- 待探索：方案 C（精简 system prompt + 工具定义）
+- 已生效优化：`viewport_threshold=200`（方案B）、`tool_exclude`（C1）、`slim_system_prompt`（C2）
+- 固定开销单次：system 13,060 + tools 13,781 = 26,841 chars（-40.5%）
+- 成功率：3/3（smoke：登录 / 充电订单 / 站点列表）
+- 全量总览见 [`prompt-optimization-index.md`](./prompt-optimization-index.md)
