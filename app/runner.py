@@ -171,8 +171,7 @@ async def _run_suite(
                 continue
 
             # 业务用例
-            print(f"\n===== 用例结果: {case.name} =====")
-            print(history.final_result())
+            logger.info("===== 用例结果: %s =====\n%s", case.name, history.final_result() or "")
             _print_token_usage(history)
             results.append(
                 RunResult(
@@ -251,36 +250,34 @@ def _generate_report(results: list[Any], config: Config, report_name: str) -> No
 
 
 def _print_token_usage(history: Any) -> None:
-    """打印本次运行的 token 用量统计（不涉及费用）。"""
+    """记录本次运行的 token 用量统计（写日志，console 与文件双路可见）。"""
     usage = getattr(history, "usage", None)
+    lines = ["===== Token Usage ====="]
     if usage is None:
-        print("\n===== Token Usage =====")
-        print("(无 token 用量数据)")
-        return
+        lines.append("(无 token 用量数据)")
+    else:
+        # usage 可能是 UsageSummary 对象或 dict，统一转 dict 输出
+        data = usage.model_dump() if hasattr(usage, "model_dump") else usage
+        if not isinstance(data, dict):
+            data = vars(usage) if hasattr(usage, "__dict__") else {}
+        lines.append(f"  total_prompt_tokens   = {data.get('total_prompt_tokens', 0)}")
+        lines.append(f"  total_completion_tokens = {data.get('total_completion_tokens', 0)}")
+        lines.append(f"  total_tokens          = {data.get('total_tokens', 0)}")
+        lines.append(f"  total_prompt_cached   = {data.get('total_prompt_cached_tokens', 0)}")
+        lines.append(f"  entry_count           = {data.get('entry_count', 0)}")
 
-    # usage 可能是 UsageSummary 对象或 dict，统一转 dict 输出
-    data = usage.model_dump() if hasattr(usage, "model_dump") else usage
-    if not isinstance(data, dict):
-        data = vars(usage) if hasattr(usage, "__dict__") else {}
-
-    print("\n===== Token Usage =====")
-    print(f"  total_prompt_tokens   = {data.get('total_prompt_tokens', 0)}")
-    print(f"  total_completion_tokens = {data.get('total_completion_tokens', 0)}")
-    print(f"  total_tokens          = {data.get('total_tokens', 0)}")
-    print(f"  total_prompt_cached   = {data.get('total_prompt_cached_tokens', 0)}")
-    print(f"  entry_count           = {data.get('entry_count', 0)}")
-
-    by_model = data.get("by_model") or {}
-    if isinstance(by_model, dict) and by_model:
-        print("  ---- by model ----")
-        for model, stats in by_model.items():
-            s = stats.model_dump() if hasattr(stats, "model_dump") else stats
-            print(
-                f"    {model}: prompt={s.get('prompt_tokens', 0)} "
-                f"completion={s.get('completion_tokens', 0)} "
-                f"total={s.get('total_tokens', 0)} "
-                f"invocations={s.get('invocations', 0)}"
-            )
+        by_model = data.get("by_model") or {}
+        if isinstance(by_model, dict) and by_model:
+            lines.append("  ---- by model ----")
+            for model, stats in by_model.items():
+                s = stats.model_dump() if hasattr(stats, "model_dump") else stats
+                lines.append(
+                    f"    {model}: prompt={s.get('prompt_tokens', 0)} "
+                    f"completion={s.get('completion_tokens', 0)} "
+                    f"total={s.get('total_tokens', 0)} "
+                    f"invocations={s.get('invocations', 0)}"
+                )
+    logger.info("\n".join(lines))
 
 
 def _setup_logging(log_dir: str, level: str = "INFO") -> Path:
