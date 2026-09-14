@@ -4,9 +4,9 @@
     {
       "id": "mem_0d5e400a",
       "created_at": "2026-09-08T17:41:58.929677",
-      "updated_at": "2026-09-11T14:46:35.227433",
-      "success_count": 8,
-      "last_used_at": "2026-09-11T14:46:35.227426",
+      "updated_at": "2026-09-14T14:04:52.528772",
+      "success_count": 9,
+      "last_used_at": "2026-09-14T14:04:52.528771",
       "key": {
         "mode": "flat",
         "flat_key": "未知页面 > 单据时间：",
@@ -50,6 +50,49 @@
         },
         {
           "step": 2,
+          "description": "点击文本=平台结束时间 .el-select-dropdown__item",
+          "action": "click",
+          "target_hint": "文本=平台结束时间 .el-select-dropdown__item",
+          "element_signature": {
+            "tag": "li",
+            "role": "option",
+            "aria_label": null,
+            "text_fragments": [
+              "平台结束时间"
+            ],
+            "class_fragments": [
+              "el-select-dropdown__item"
+            ],
+            "attributes": {
+              "placeholder": "请选择",
+              "title": "平台结束时间"
+            }
+          },
+          "input_value": null
+        },
+        {
+          "step": 3,
+          "description": "点击文本=单据时间： .el-select__input",
+          "action": "click",
+          "target_hint": "文本=单据时间： .el-select__input",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [
+              "单据时间："
+            ],
+            "class_fragments": [
+              "el-select__input"
+            ],
+            "attributes": {
+              "type": "text"
+            }
+          },
+          "input_value": null
+        },
+        {
+          "step": 4,
           "description": "点击文本=订单创建时间 .el-select-dropdown__item",
           "action": "click",
           "target_hint": "文本=订单创建时间 .el-select-dropdown__item",
@@ -71,7 +114,7 @@
           "input_value": null
         },
         {
-          "step": 3,
+          "step": 5,
           "description": "点击文本=查询 .el-button.el-button--primary",
           "action": "click",
           "target_hint": "文本=查询 .el-button.el-button--primary",

@@ -2,11 +2,11 @@
   "version": "1.0",
   "memories": [
     {
-      "id": "mem_dfccac82",
-      "created_at": "2026-09-07T16:17:18.041753",
-      "updated_at": "2026-09-14T14:02:25.432401",
-      "success_count": 17,
-      "last_used_at": "2026-09-14T14:02:25.432397",
+      "id": "mem_01222f9f",
+      "created_at": "2026-09-14T13:39:35.240259",
+      "updated_at": "2026-09-14T13:59:06.692432",
+      "success_count": 2,
+      "last_used_at": "2026-09-14T13:59:06.692414",
       "key": {
         "mode": "flat",
         "flat_key": "未知页面 > 请输入您的账号",
@@ -52,7 +52,7 @@
         },
         {
           "step": 2,
-          "description": "输入文本=请输入您的密码 .el-input__inner，值=Abcd1234!@#$",
+          "description": "输入文本=请输入您的密码 .el-input__inner，值=123456",
           "action": "input",
           "target_hint": "文本=请输入您的密码 .el-input__inner",
           "element_signature": {
@@ -70,13 +70,13 @@
               "type": "password"
             }
           },
-          "input_value": "Abcd1234!@#$"
+          "input_value": "123456"
         },
         {
           "step": 3,
-          "description": "点击文本=登录 .el-button.el-button--primary",
+          "description": "点击文本=登录 .el-button.el-button--primary.is-disabled",
           "action": "click",
-          "target_hint": "文本=登录 .el-button.el-button--primary",
+          "target_hint": "文本=登录 .el-button.el-button--primary.is-disabled",
           "element_signature": {
             "tag": "button",
             "role": null,
@@ -86,7 +86,8 @@
             ],
             "class_fragments": [
               "el-button",
-              "el-button--primary"
+              "el-button--primary",
+              "is-disabled"
             ],
             "attributes": {
               "type": "button"
@@ -97,8 +98,8 @@
       ],
       "context": {
         "url_pattern": "*/Login*",
-        "page_title_fragment": "壳牌充电管理平台",
-        "host": "uat-manhattan.shell.com.cn"
+        "page_title_fragment": "特许经营协作平台",
+        "host": "uat2-ev-franchisee.shell.com.cn"
       }
     }
   ]

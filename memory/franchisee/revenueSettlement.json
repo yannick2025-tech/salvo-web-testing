@@ -1,0 +1,208 @@
+{
+  "version": "1.0",
+  "memories": [
+    {
+      "id": "mem_1b51003d",
+      "created_at": "2026-09-14T14:01:15.842785",
+      "updated_at": "2026-09-14T14:01:15.842789",
+      "success_count": 1,
+      "last_used_at": "2026-09-14T14:01:15.842790",
+      "key": {
+        "mode": "flat",
+        "flat_key": "未知页面 > 开始时间",
+        "hierarchical_path": []
+      },
+      "element_signature": {
+        "tag": "input",
+        "role": "combobox",
+        "aria_label": null,
+        "text_fragments": [
+          "开始时间"
+        ],
+        "class_fragments": [
+          "el-range-input"
+        ],
+        "attributes": {
+          "placeholder": "开始时间"
+        }
+      },
+      "operation_steps": [
+        {
+          "step": 1,
+          "description": "点击文本=开始时间 .el-range-input",
+          "action": "click",
+          "target_hint": "文本=开始时间 .el-range-input",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [
+              "开始时间"
+            ],
+            "class_fragments": [
+              "el-range-input"
+            ],
+            "attributes": {
+              "placeholder": "开始时间"
+            }
+          },
+          "input_value": null
+        },
+        {
+          "step": 2,
+          "description": "输入文本=开始日期 .el-input__inner，值=2026-08-01",
+          "action": "input",
+          "target_hint": "文本=开始日期 .el-input__inner",
+          "element_signature": {
+            "tag": "input",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [
+              "开始日期"
+            ],
+            "class_fragments": [
+              "el-input__inner"
+            ],
+            "attributes": {
+              "placeholder": "开始日期",
+              "type": "text"
+            }
+          },
+          "input_value": "2026-08-01"
+        },
+        {
+          "step": 3,
+          "description": "点击文本=开始时间 .el-range-input",
+          "action": "click",
+          "target_hint": "文本=开始时间 .el-range-input",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [
+              "开始时间"
+            ],
+            "class_fragments": [
+              "el-range-input"
+            ],
+            "attributes": {
+              "placeholder": "开始时间"
+            }
+          },
+          "input_value": null
+        },
+        {
+          "step": 4,
+          "description": "输入文本=开始时间 .el-range-input，值=2026-08-01 00:00:00",
+          "action": "input",
+          "target_hint": "文本=开始时间 .el-range-input",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [
+              "开始时间"
+            ],
+            "class_fragments": [
+              "el-range-input"
+            ],
+            "attributes": {
+              "placeholder": "开始时间"
+            }
+          },
+          "input_value": "2026-08-01 00:00:00"
+        },
+        {
+          "step": 5,
+          "description": "点击文本=结束时间 .el-range-input",
+          "action": "click",
+          "target_hint": "文本=结束时间 .el-range-input",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [
+              "结束时间"
+            ],
+            "class_fragments": [
+              "el-range-input"
+            ],
+            "attributes": {
+              "placeholder": "结束时间"
+            }
+          },
+          "input_value": null
+        },
+        {
+          "step": 6,
+          "description": "输入文本=结束时间 .el-range-input，值=2026-08-31 23:59:59",
+          "action": "input",
+          "target_hint": "文本=结束时间 .el-range-input",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [
+              "结束时间"
+            ],
+            "class_fragments": [
+              "el-range-input"
+            ],
+            "attributes": {
+              "placeholder": "结束时间"
+            }
+          },
+          "input_value": "2026-08-31 23:59:59"
+        },
+        {
+          "step": 7,
+          "description": "点击文本=开始时间 .el-range-input",
+          "action": "click",
+          "target_hint": "文本=开始时间 .el-range-input",
+          "element_signature": {
+            "tag": "input",
+            "role": "combobox",
+            "aria_label": null,
+            "text_fragments": [
+              "开始时间"
+            ],
+            "class_fragments": [
+              "el-range-input"
+            ],
+            "attributes": {
+              "placeholder": "开始时间"
+            }
+          },
+          "input_value": null
+        },
+        {
+          "step": 8,
+          "description": "点击文本=查询 .el-button.el-button--primary",
+          "action": "click",
+          "target_hint": "文本=查询 .el-button.el-button--primary",
+          "element_signature": {
+            "tag": "button",
+            "role": null,
+            "aria_label": null,
+            "text_fragments": [
+              "查询"
+            ],
+            "class_fragments": [
+              "el-button",
+              "el-button--primary"
+            ],
+            "attributes": {
+              "type": "button"
+            }
+          },
+          "input_value": null
+        }
+      ],
+      "context": {
+        "url_pattern": "*/revenueSettlement/settlementRecordList*",
+        "page_title_fragment": "特许经营协作平台",
+        "host": "uat2-ev-franchisee.shell.com.cn"
+      }
+    }
+  ]
+}

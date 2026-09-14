@@ -288,6 +288,9 @@ def _setup_logging(log_dir: str, level: str = "INFO") -> Path:
 
     - 文件日志按运行时间戳命名，每次运行独立一个文件，便于 CICD 按次归档。
     - console handler 保留，保证本地运行时终端仍实时可见。
+    - browser_use 的 logger（browser_use / bubus）设了 propagate=False 且只挂
+      console handler，日志不会传播到 root，故必须把 FileHandler 也挂到这些
+      logger 上，否则文件会缺失 [Agent]/[tools]/[BrowserSession] 等执行细节。
     """
     log_path = Path(log_dir)
     log_path.mkdir(parents=True, exist_ok=True)
@@ -295,26 +298,55 @@ def _setup_logging(log_dir: str, level: str = "INFO") -> Path:
 
     root = logging.getLogger()
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
-    fmt = logging.Formatter(
+
+    class _CleanNameFormatter(logging.Formatter):
+        """把 browser_use 的动态 logger 名（含 emoji/id）清理为可读组件名。"""
+
+        def format(self, record):
+            name = record.name
+            if isinstance(name, str) and name.startswith("browser_use."):
+                if "Agent" in name:
+                    record.name = "Agent"
+                elif "BrowserSession" in name:
+                    record.name = "BrowserSession"
+                elif "tools" in name:
+                    record.name = "tools"
+                elif "dom" in name:
+                    record.name = "dom"
+                else:
+                    record.name = name.split(".")[-1]
+            return super().format(record)
+
+    fmt = _CleanNameFormatter(
         "%(asctime)s [%(name)s] %(levelname)s: %(message)s",
         datefmt="%H:%M:%S",
     )
 
-    # console handler：仅在未配置时添加，避免重复
+    # 需要挂 file handler 的 logger：root + browser_use 的 propagate=False 分支
+    targets = [
+        root,
+        logging.getLogger("browser_use"),
+        logging.getLogger("bubus"),
+    ]
+
+    # 清理之前挂的 FileHandler，避免重复追加
+    for lg in targets:
+        for h in list(lg.handlers):
+            if isinstance(h, logging.FileHandler):
+                h.close()
+                lg.removeHandler(h)
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(fmt)
+
+    # console handler：仅在 root 尚未配置时添加，避免重复
     if not root.handlers:
         console = logging.StreamHandler()
         console.setFormatter(fmt)
         root.addHandler(console)
 
-    # 清理之前的文件 handler，避免重复追加
-    for h in list(root.handlers):
-        if isinstance(h, logging.FileHandler):
-            h.close()
-            root.removeHandler(h)
-
-    file_handler = logging.FileHandler(log_file, encoding="utf-8")
-    file_handler.setFormatter(fmt)
-    root.addHandler(file_handler)
+    for lg in targets:
+        lg.addHandler(file_handler)
 
     return log_file
 
