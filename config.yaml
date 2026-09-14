@@ -26,6 +26,13 @@ platforms:
     account: ${MANHATTAN_ACCOUNT}
     password: ${MANHATTAN_PASSWORD}
 
+  # 加盟商/业主平台（uat2-ev-franchisee）
+  franchisee:
+    host: ${FRANCHISEE_HOST}
+    login_url: ${FRANCHISEE_LOGIN_URL}
+    account: ${FRANCHISEE_ACCOUNT}
+    password: ${FRANCHISEE_PASSWORD}
+
 # 元素记忆（与 browser_use_ext 的 ElementMemoryConfig 同结构）
 element_memory:
   enabled: true
