@@ -18,6 +18,7 @@ import argparse
 import asyncio
 import logging
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -282,6 +283,42 @@ def _print_token_usage(history: Any) -> None:
             )
 
 
+def _setup_logging(log_dir: str, level: str = "INFO") -> Path:
+    """配置双路日志：console（保留）+ 文件（CICD 留档），返回日志文件路径。
+
+    - 文件日志按运行时间戳命名，每次运行独立一个文件，便于 CICD 按次归档。
+    - console handler 保留，保证本地运行时终端仍实时可见。
+    """
+    log_path = Path(log_dir)
+    log_path.mkdir(parents=True, exist_ok=True)
+    log_file = log_path / f"runner_{datetime.now():%Y%m%d-%H%M%S}.log"
+
+    root = logging.getLogger()
+    root.setLevel(getattr(logging, level.upper(), logging.INFO))
+    fmt = logging.Formatter(
+        "%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+    # console handler：仅在未配置时添加，避免重复
+    if not root.handlers:
+        console = logging.StreamHandler()
+        console.setFormatter(fmt)
+        root.addHandler(console)
+
+    # 清理之前的文件 handler，避免重复追加
+    for h in list(root.handlers):
+        if isinstance(h, logging.FileHandler):
+            h.close()
+            root.removeHandler(h)
+
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(fmt)
+    root.addHandler(file_handler)
+
+    return log_file
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()  # 加载 .env 中的 API KEY
 
@@ -316,13 +353,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
-
     config = load_config(args.config)
+    log_file = _setup_logging(config.log.dir, config.log.level)
+    logger.info("日志文件: %s", log_file)
     asyncio.run(_run(args.case, config, args.report, args.platform))
     return 0
 

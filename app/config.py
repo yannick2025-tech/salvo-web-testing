@@ -123,6 +123,13 @@ class ReportConfig(BaseModel):
     detail: bool = Field(default=False, description="详细模式（额外含 thinking/URL/token 等）")
 
 
+class LogConfig(BaseModel):
+    """运行日志配置：同时输出 console 与文件（文件供 CICD 留档）。"""
+
+    dir: str = Field(default="./logs", description="日志目录")
+    level: str = Field(default="INFO", description="日志级别")
+
+
 class Config(BaseModel):
     """总配置。"""
 
@@ -134,6 +141,7 @@ class Config(BaseModel):
     runner: RunnerConfig = Field(default_factory=RunnerConfig)
     profiling: ProfilingConfig = Field(default_factory=ProfilingConfig)
     report: ReportConfig = Field(default_factory=ReportConfig)
+    log: LogConfig = Field(default_factory=LogConfig)
 
     def resolve_platform(self, host: str) -> Optional[str]:
         """按 host 精确匹配平台，返回平台别名；未命中返回 None。"""
